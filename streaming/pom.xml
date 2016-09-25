@@ -106,9 +106,9 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <configuration>
+        <!--<configuration>
           <shadeTestJar>true</shadeTestJar>
-        </configuration>
+        </configuration>-->
       </plugin>
     </plugins>
   </build>
