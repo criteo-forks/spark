@@ -17,10 +17,12 @@
 
 package org.apache.spark.rdd
 
-import java.io.File
+import java.io.{DataInput, DataOutput, File}
 
 import scala.collection.Map
 import scala.io.Codec
+import scala.sys.process._
+import scala.util.Try
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{LongWritable, Text}
@@ -244,4 +246,57 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
     new HadoopPartition(sc.newRddId(), 1, split)
   }
 
+  test("pipe works for non-default encoding") {
+    assume(testCommandAvailable("cat"))
+    val elems = sc.parallelize(Array("foobar"))
+        .pipe(Seq("cat"), encoding = "utf-32")
+        .collect()
+
+    assert(elems.size === 1)
+    assert(elems.head === "foobar")
+  }
+
+  test("pipe works for rawbytes") {
+    assume(testCommandAvailable("cat"))
+    val kv = "foo".getBytes -> "bar".getBytes
+    val elems = sc.parallelize(Array(kv)).pipeFormatted(Seq("cat"),
+      inputWriter = new RawBytesInputWriter(),
+      outputReader = new RawBytesOutputReader()
+    ).collect()
+
+    assert(elems.size === 1)
+    elems match {
+      case Array((key, value)) =>
+        assert(key sameElements kv._1)
+        assert(value sameElements kv._2)
+    }
+  }
+}
+
+class RawBytesInputWriter extends InputWriter[(Array[Byte], Array[Byte])] {
+  override def write(dos: DataOutput, elem: (Array[Byte], Array[Byte])): Unit = {
+    elem match {
+      case (key, value) =>
+        dos.writeInt(key.length)
+        dos.write(key)
+        dos.writeInt(value.length)
+        dos.write(value)
+    }
+  }
+}
+
+class RawBytesOutputReader extends OutputReader[(Array[Byte], Array[Byte])] {
+  private def readLengthPrefixed(dis: DataInput): Array[Byte] = {
+    val length = dis.readInt()
+    assert(length >= 0)
+    val result = Array.ofDim[Byte](length)
+    dis.readFully(result)
+    result
+  }
+
+  override def read(dis: DataInput): (Array[Byte], Array[Byte]) = {
+    val key = readLengthPrefixed(dis)
+    val value = readLengthPrefixed(dis)
+    key -> value
+  }
 }
