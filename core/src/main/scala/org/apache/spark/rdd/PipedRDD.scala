@@ -17,61 +17,47 @@
 
 package org.apache.spark.rdd
 
-import java.io.File
-import java.io.FilenameFilter
-import java.io.IOException
-import java.io.PrintWriter
+import java.io._
+import java.util
 import java.util.StringTokenizer
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
+import scala.io.Codec
 import scala.reflect.ClassTag
+
+import com.google.common.io.ByteStreams
 
 import org.apache.spark.{Partition, SparkEnv, TaskContext}
 import org.apache.spark.util.Utils
 
-
 /**
- * An RDD that pipes the contents of each parent partition through an external command
- * (printing them one per line) and returns the output as a collection of strings.
+ * An RDD that pipes the contents of each parent partition through an
+ * external command and returns the output.
  */
-private[spark] class PipedRDD[T: ClassTag](
-    prev: RDD[T],
+private[spark] class PipedRDD[I: ClassTag, O: ClassTag](
+    prev: RDD[I],
     command: Seq[String],
     envVars: Map[String, String],
-    printPipeContext: (String => Unit) => Unit,
-    printRDDElement: (T, String => Unit) => Unit,
-    separateWorkingDir: Boolean)
-  extends RDD[String](prev) {
+    separateWorkingDir: Boolean,
+    bufferSize: Int,
+    inputWriter: InputWriter[I],
+    outputReader: OutputReader[O]
+) extends RDD[O](prev) {
 
-  // Similar to Runtime.exec(), if we are given a single string, split it into words
-  // using a standard StringTokenizer (i.e. by spaces)
-  def this(
-      prev: RDD[T],
-      command: String,
-      envVars: Map[String, String] = Map(),
-      printPipeContext: (String => Unit) => Unit = null,
-      printRDDElement: (T, String => Unit) => Unit = null,
-      separateWorkingDir: Boolean = false) =
-    this(prev, PipedRDD.tokenize(command), envVars, printPipeContext, printRDDElement,
-      separateWorkingDir)
-
-
-  override def getPartitions: Array[Partition] = firstParent[T].partitions
+  override def getPartitions: Array[Partition] = firstParent[I].partitions
 
   /**
    * A FilenameFilter that accepts anything that isn't equal to the name passed in.
    * @param filterName of file or directory to leave out
    */
   class NotEqualsFileNameFilter(filterName: String) extends FilenameFilter {
-    def accept(dir: File, name: String): Boolean = {
-      !name.equals(filterName)
-    }
+    def accept(dir: File, name: String): Boolean = !name.equals(filterName)
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[String] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[O] = {
     val pb = new ProcessBuilder(command.asJava)
     // Add the environmental variables to the process.
     val currentEnvVars = pb.environment()
@@ -118,66 +104,188 @@ private[spark] class PipedRDD[T: ClassTag](
 
     val proc = pb.start()
     val env = SparkEnv.get
+    val childThreadException = new AtomicReference[Throwable](null)
 
     // Start a thread to print the process's stderr to ours
-    new Thread("stderr reader for " + command) {
-      override def run() {
-        for (line <- Source.fromInputStream(proc.getErrorStream).getLines) {
-          // scalastyle:off println
-          System.err.println(line)
-          // scalastyle:on println
+    new Thread(s"stderr reader for $command") {
+      override def run(): Unit = {
+        val os = System.err
+        try {
+          ByteStreams.copy(proc.getErrorStream, os)
+        } catch {
+          case t: Throwable => childThreadException.set(t)
+        } finally {
+          os.close()
         }
       }
     }.start()
 
     // Start a thread to feed the process input from our parent's iterator
-    new Thread("stdin writer for " + command) {
-      override def run() {
+    new Thread(s"stdin writer for $command") {
+      override def run(): Unit = {
         TaskContext.setTaskContext(context)
-        val out = new PrintWriter(proc.getOutputStream)
-
-        // scalastyle:off println
-        // input the pipe context firstly
-        if (printPipeContext != null) {
-          printPipeContext(out.println(_))
-        }
-        for (elem <- firstParent[T].iterator(split, context)) {
-          if (printRDDElement != null) {
-            printRDDElement(elem, out.println(_))
-          } else {
-            out.println(elem)
+        val dos = new DataOutputStream(
+          new BufferedOutputStream(proc.getOutputStream, bufferSize))
+        try {
+          for (elem <- firstParent[I].iterator(split, context)) {
+            inputWriter.write(dos, elem)
           }
+        } catch {
+          case t: Throwable => childThreadException.set(t)
+        } finally {
+          dos.close()
         }
-        // scalastyle:on println
-        out.close()
       }
     }.start()
 
-    // Return an iterator that read lines from the process's stdout
-    val lines = Source.fromInputStream(proc.getInputStream).getLines()
-    new Iterator[String] {
-      def next(): String = lines.next()
-      def hasNext: Boolean = {
-        if (lines.hasNext) {
-          true
-        } else {
+    val dis = new DataInputStream(
+      new BufferedInputStream(proc.getInputStream, bufferSize))
+    new Iterator[O] {
+      def next(): O = {
+        if (!hasNext()) {
+          throw new NoSuchElementException()
+        }
+
+        outputReader.read(dis)
+      }
+
+      def hasNext(): Boolean = {
+        dis.mark(1)
+        val eof = dis.read() < 0
+        dis.reset()
+
+        if (eof) {
           val exitStatus = proc.waitFor()
+          cleanup()
           if (exitStatus != 0) {
-            throw new Exception("Subprocess exited with status " + exitStatus)
+            throw new IllegalStateException(s"Subprocess exited with status $exitStatus. " +
+              s"Command ran: " + command.mkString(" "))
           }
+        }
 
-          // cleanup task working directory if used
-          if (workInTaskDirectory) {
-            scala.util.control.Exception.ignoring(classOf[IOException]) {
-              Utils.deleteRecursively(new File(taskDirectory))
-            }
-            logDebug("Removed task working directory " + taskDirectory)
+        propagateChildException()
+        !eof
+      }
+
+      private def cleanup(): Unit = {
+        // cleanup task working directory if used
+        if (workInTaskDirectory) {
+          scala.util.control.Exception.ignoring(classOf[IOException]) {
+            Utils.deleteRecursively(new File(taskDirectory))
           }
+          logDebug(s"Removed task working directory $taskDirectory")
+        }
+      }
 
-          false
+      private def propagateChildException(): Unit = {
+        val t = childThreadException.get()
+        if (t != null) {
+          val commandRan = command.mkString(" ")
+          logError("Caught exception while running pipe() operator. " +
+              s"Command ran: $commandRan.", t)
+          cleanup()
+          proc.destroy()
+          throw t
         }
       }
     }
+  }
+}
+
+/** Specifies how to write the elements of the input [[RDD]] into the pipe. */
+trait InputWriter[T] extends Serializable {
+  def write(dos: DataOutput, elem: T): Unit
+}
+
+/** Specifies how to read the elements from the pipe into the output [[RDD]]. */
+trait OutputReader[T] extends Serializable {
+  /**
+   * Reads the next element.
+   *
+   * The input is guaranteed to have at least one byte.
+   */
+  def read(dis: DataInput): T
+}
+
+class TextInputWriter[I](
+    encoding: String = Codec.defaultCharsetCodec.name,
+    printPipeContext: (String => Unit) => Unit = null,
+    printRDDElement: (I, String => Unit) => Unit = null
+) extends InputWriter[I] {
+
+  private[this] val lineSeparator = System.lineSeparator().getBytes(encoding)
+  private[this] var initialized = printPipeContext == null
+
+  private def writeLine(dos: DataOutput, s: String): Unit = {
+    dos.write(s.getBytes(encoding))
+    dos.write(lineSeparator)
+  }
+
+  override def write(dos: DataOutput, elem: I): Unit = {
+    if (!initialized) {
+      printPipeContext(writeLine(dos, _))
+      initialized = true
+    }
+
+    if (printRDDElement == null) {
+      writeLine(dos, String.valueOf(elem))
+    } else {
+      printRDDElement(elem, writeLine(dos, _))
+    }
+  }
+}
+
+class TextOutputReader(
+    encoding: String = Codec.defaultCharsetCodec.name
+) extends OutputReader[String] {
+
+  private[this] val lf = "\n".getBytes(encoding)
+  private[this] val cr = "\r".getBytes(encoding)
+  private[this] val crlf = cr ++ lf
+  private[this] var buf = Array.ofDim[Byte](64)
+  private[this] var used = 0
+
+  @inline
+  /** Checks that the suffix of [[buf]] matches [[other]]. */
+  private def endsWith(other: Array[Byte]): Boolean = {
+    var i = used - 1
+    var j = other.length - 1
+    (j <= i) && {
+      while (j >= 0) {
+        if (buf(i) != other(j)) {
+          return false
+        }
+        i -= 1
+        j -= 1
+      }
+      true
+    }
+  }
+
+  override def read(dis: DataInput): String = {
+    used = 0
+
+    try {
+      do {
+        val ch = dis.readByte()
+        if (buf.length <= used) {
+          buf = util.Arrays.copyOf(buf, used + (used >>> 1))  // 1.5x
+        }
+
+        buf(used) = ch
+        used += 1
+      } while (!(endsWith(lf) || endsWith(cr)))
+
+      if (endsWith(crlf)) {
+        used -= crlf.length
+      } else {  // endsWith(lf) || endsWith(cr)
+        used -= lf.length
+      }
+    } catch {
+      case _: EOFException =>
+    }
+
+    new String(buf, 0, used, encoding)
   }
 }
 

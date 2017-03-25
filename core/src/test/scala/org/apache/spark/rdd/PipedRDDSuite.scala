@@ -17,12 +17,11 @@
 
 package org.apache.spark.rdd
 
-import java.io.File
+import java.io.{DataInput, DataOutput, File}
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapred.{FileSplit, JobConf, TextInputFormat}
-
 import scala.collection.Map
 import scala.language.postfixOps
 import scala.sys.process._
@@ -47,6 +46,27 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
       assert(c(3) === "4")
     } else {
       assert(true)
+    }
+  }
+
+  test("failure in iterating over pipe input") {
+    if (testCommandAvailable("cat")) {
+      val nums =
+        sc.makeRDD(Array(1, 2, 3, 4), 2)
+          .mapPartitionsWithIndex((index, iterator) => {
+            new Iterator[Int] {
+              def hasNext = true
+              def next() = {
+                throw new SparkException("Exception to simulate bad scenario")
+              }
+            }
+          })
+
+      val piped = nums.pipe(Seq("cat"))
+
+      intercept[SparkException] {
+        piped.collect()
+      }
     }
   }
 
@@ -113,15 +133,27 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
     }
   }
 
-  test("pipe with non-zero exit status") {
-    if (testCommandAvailable("cat")) {
+  test("pipe with process which cannot be launched due to bad command") {
+    if (!testCommandAvailable("some_nonexistent_command")) {
       val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
-      val piped = nums.pipe(Seq("cat nonexistent_file", "2>", "/dev/null"))
-      intercept[SparkException] {
+      val command = Seq("some_nonexistent_command")
+      val piped = nums.pipe(command)
+      val exception = intercept[SparkException] {
         piped.collect()
       }
-    } else {
-      assert(true)
+      assert(exception.getMessage.contains(command.mkString(" ")))
+    }
+  }
+
+  test("pipe with process which is launched but fails with non-zero exit status") {
+    if (testCommandAvailable("cat")) {
+      val nums = sc.makeRDD(Array(1, 2, 3, 4), 2)
+      val command = Seq("cat", "nonexistent_file")
+      val piped = nums.pipe(command)
+      val exception = intercept[SparkException] {
+        piped.collect()
+      }
+      assert(exception.getMessage.contains(command.mkString(" ")))
     }
   }
 
@@ -138,7 +170,7 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
       val pipedPwd = nums.pipe(Seq("pwd"), separateWorkingDir = true)
       val collectPwd = pipedPwd.collect()
       assert(collectPwd(0).contains("tasks/"))
-      val pipedLs = nums.pipe(Seq("ls"), separateWorkingDir = true).collect()
+      val pipedLs = nums.pipe(Seq("ls"), separateWorkingDir = true, bufferSize = 16384).collect()
       // make sure symlinks were created
       assert(pipedLs.length > 0)
       // clean up top level tasks directory
@@ -174,7 +206,7 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
         }
       }
       val hadoopPart1 = generateFakeHadoopPartition()
-      val pipedRdd = new PipedRDD(nums, "printenv " + varName)
+      val pipedRdd = nums.pipe("printenv " + varName)
       val tContext = TaskContext.empty()
       val rddIter = pipedRdd.compute(hadoopPart1, tContext)
       val arr = rddIter.toArray
@@ -190,4 +222,66 @@ class PipedRDDSuite extends SparkFunSuite with SharedSparkContext {
     new HadoopPartition(sc.newRddId(), 1, split)
   }
 
+  test("pipe works for non-default encoding") {
+    if (testCommandAvailable("cat")) {
+      val elems = sc.parallelize(Array("foobar"))
+          .pipe(Seq("cat"), encoding = "utf-32")
+          .collect()
+
+      assert(elems.size === 1)
+      assert(elems.head === "foobar")
+    }
+  }
+
+  test("pipe works for null") {
+    if (testCommandAvailable("cat")) {
+      val elems = sc.parallelize(Array(null))
+          .pipe(Seq("cat"))
+          .collect()
+
+      assert(elems.size === 1)
+      assert(elems.head === "null")
+    }
+  }
+
+  test("pipe works for rawbytes") {
+    if (testCommandAvailable("cat")) {
+      val kv = "foo".getBytes -> "bar".getBytes
+      val elems = sc.parallelize(Array(kv)).pipeFormatted(Seq("cat"),
+        inputWriter = new RawBytesInputWriter(),
+        outputReader = new RawBytesOutputReader()
+      ).collect()
+
+      assert(elems.size === 1)
+      val Array((key, value)) = elems
+      assert(key sameElements kv._1)
+      assert(value sameElements kv._2)
+    }
+  }
+}
+
+class RawBytesInputWriter extends InputWriter[(Array[Byte], Array[Byte])] {
+  override def write(dos: DataOutput, elem: (Array[Byte], Array[Byte])): Unit = {
+    val (key, value) = elem
+    dos.writeInt(key.length)
+    dos.write(key)
+    dos.writeInt(value.length)
+    dos.write(value)
+  }
+}
+
+class RawBytesOutputReader extends OutputReader[(Array[Byte], Array[Byte])] {
+  private def readLengthPrefixed(dis: DataInput): Array[Byte] = {
+    val length = dis.readInt()
+    assert(length >= 0)
+    val result = Array.ofDim[Byte](length)
+    dis.readFully(result)
+    result
+  }
+
+  override def read(dis: DataInput): (Array[Byte], Array[Byte]) = {
+    val key = readLengthPrefixed(dis)
+    val value = readLengthPrefixed(dis)
+    key -> value
+  }
 }
