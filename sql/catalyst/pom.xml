@@ -85,7 +85,7 @@
            causes the compilation to fail if catalyst test-jar is not generated. Hence, the
            second execution profile for 'mvn test-compile'.
       -->
-      <plugin>
+      <!--<plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
@@ -102,7 +102,7 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
+      </plugin>-->
     </plugins>
   </build>
   <profiles>
