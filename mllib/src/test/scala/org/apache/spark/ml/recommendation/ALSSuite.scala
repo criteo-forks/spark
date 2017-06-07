@@ -576,12 +576,15 @@ class ALSCleanerSuite extends SparkFunSuite {
 
   test("ALS shuffle cleanup in algorithm") {
     val conf = new SparkConf()
-    val localDir = Utils.createTempDir()
+    // This used to be a temporary directory, plugged into [[SparkConf]]
+    // via [[SparkConf.set]], but apparently on Mesos
+    // [[Utils.getConfiguredLocalDirs]] used by [[DiskBlockManager]]
+    // prefers MESOS_DIRECTORY.
+    val Array(localDir) = Utils.getConfiguredLocalDirs(conf).map(dir => new File(dir))
     val checkpointDir = Utils.createTempDir()
     def getAllFiles: Set[File] =
       FileUtils.listFiles(localDir, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE).asScala.toSet
     try {
-      conf.set("spark.local.dir", localDir.getAbsolutePath)
       val sc = new SparkContext("local[2]", "test", conf)
       try {
         sc.setCheckpointDir(checkpointDir.getAbsolutePath)
@@ -612,7 +615,6 @@ class ALSCleanerSuite extends SparkFunSuite {
         sc.stop()
       }
     } finally {
-      Utils.deleteRecursively(localDir)
       Utils.deleteRecursively(checkpointDir)
     }
   }
