@@ -35,7 +35,7 @@ import org.json4s.JsonAST._
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.JsonMethods._
 import org.openqa.selenium.WebDriver
-import org.openqa.selenium.chrome.ChromeDriver
+import org.openqa.selenium.htmlunit.HtmlUnitDriver
 import org.scalatest.{BeforeAndAfter, Matchers}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mock.MockitoSugar
@@ -317,7 +317,9 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     contextHandler.addServlet(holder, "/")
     server.attachHandler(contextHandler)
 
-    implicit val webDriver: WebDriver = new ChromeDriver
+    implicit val webDriver: WebDriver = new HtmlUnitDriver(true) {
+      getWebClient.getOptions.setThrowExceptionOnScriptError(false)
+    }
 
     try {
       val url = s"http://localhost:$port"
@@ -349,7 +351,7 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
 
   test("incomplete apps get refreshed") {
 
-    implicit val webDriver: WebDriver = new ChromeDriver
+    implicit val webDriver: WebDriver = new HtmlUnitDriver
     implicit val formats = org.json4s.DefaultFormats
 
     // this test dir is explicitly deleted on successful runs; retained for diagnostics when
@@ -541,8 +543,7 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
     assert(jobcount === getNumJobs("/jobs"))
 
     // no need to retain the test dir now the tests complete
-    logDir.deleteOnExit()
-    quit()
+    logDir.deleteOnExit();
 
   }
 
