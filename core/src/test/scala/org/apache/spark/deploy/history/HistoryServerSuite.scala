@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.ZipInputStream
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -34,8 +35,9 @@ import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.json4s.JsonAST._
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.JsonMethods._
-import org.openqa.selenium.WebDriver
+import org.openqa.selenium.{By, WebDriver, WebElement}
 import org.openqa.selenium.htmlunit.HtmlUnitDriver
+import org.openqa.selenium.support.ui.{ExpectedCondition, WebDriverWait}
 import org.scalatest.{BeforeAndAfter, Matchers}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mock.MockitoSugar
@@ -326,18 +328,13 @@ class HistoryServerSuite extends SparkFunSuite with BeforeAndAfter with Matchers
 
       go to s"$url$uiRoot"
 
-      // expect the ajax call to finish in 5 seconds
-      implicitlyWait(org.scalatest.time.Span(5, org.scalatest.time.Seconds))
+      val rows: List[WebElement] = new WebDriverWait(webDriver, 25).until(
+        new ExpectedCondition[List[WebElement]] {
+          override def apply(d: WebDriver) = d.findElements(By.className("odd")).asScala.toList
+        })
 
-      // once this findAll call returns, we know the ajax load of the table completed
-      findAll(ClassNameQuery("odd"))
-
-      val links = findAll(TagNameQuery("a"))
-        .map(_.attribute("href"))
-        .filter(_.isDefined)
-        .map(_.get)
-        .filter(_.startsWith(url)).toList
-
+      val links = rows.map(_.findElement(By.tagName("a")).getAttribute("href"))
+      
       // there are atleast some URL links that were generated via javascript,
       // and they all contain the spark.ui.proxyBase (uiRoot)
       links.length should be > 4
