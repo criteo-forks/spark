@@ -40,12 +40,13 @@ object Utils {
     .build()
 
   def createOffer(
-      offerId: String,
-      slaveId: String,
-      mem: Int,
-      cpus: Int,
-      ports: Option[(Long, Long)] = None,
-      gpus: Int = 0): Offer = {
+                   offerId: String,
+                   slaveId: String,
+                   mem: Int,
+                   cpus: Int,
+                   ports: Option[(Long, Long)] = None,
+                   gpus: Int = 0,
+                   attributes: List[Attribute] = List.empty): Offer = {
     val builder = Offer.newBuilder()
     builder.addResourcesBuilder()
       .setName("mem")
@@ -60,7 +61,7 @@ object Utils {
         .setName("ports")
         .setType(Value.Type.RANGES)
         .setRanges(Ranges.newBuilder().addRange(MesosRange.newBuilder()
-          .setBegin(resourcePorts._1).setEnd(resourcePorts._2).build()))
+        .setBegin(resourcePorts._1).setEnd(resourcePorts._2).build()))
     }
     if (gpus > 0) {
       builder.addResourcesBuilder()
@@ -70,9 +71,10 @@ object Utils {
     }
     builder.setId(createOfferId(offerId))
       .setFrameworkId(FrameworkID.newBuilder()
-        .setValue("f1"))
+      .setValue("f1"))
       .setSlaveId(SlaveID.newBuilder().setValue(slaveId))
       .setHostname(s"host${slaveId}")
+      .addAllAttributes(attributes.asJava)
       .build()
   }
 
@@ -82,6 +84,12 @@ object Utils {
       Matchers.eq(Collections.singleton(createOfferId(offerId))),
       captor.capture())
     captor.getValue.asScala.toList
+  }
+
+  def verifyTaskNotLaunched(driver: SchedulerDriver, offerId: String): Unit = {
+    verify(driver, times(0)).launchTasks(
+      Matchers.eq(Collections.singleton(createOfferId(offerId))),
+      Matchers.any(classOf[java.util.Collection[TaskInfo]]))
   }
 
   def createOfferId(offerId: String): OfferID = {
@@ -99,4 +107,13 @@ object Utils {
   def createTaskId(taskId: String): TaskID = {
     TaskID.newBuilder().setValue(taskId).build()
   }
+
+  def createTextAttribute(name: String, value: String): Attribute = {
+    Attribute.newBuilder()
+      .setName(name)
+      .setType(Value.Type.TEXT)
+      .setText(Value.Text.newBuilder().setValue(value))
+      .build()
+  }
 }
+
