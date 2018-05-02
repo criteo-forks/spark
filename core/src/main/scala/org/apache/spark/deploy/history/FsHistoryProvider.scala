@@ -122,6 +122,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   // into the map in order, so the LinkedHashMap maintains the correct ordering.
   @volatile private var applications: mutable.LinkedHashMap[String, FsApplicationHistoryInfo]
     = new mutable.LinkedHashMap()
+  private val applicationsLock = new Object()
 
   val fileToAppInfo = new ConcurrentHashMap[Path, FsApplicationAttemptInfo]().asScala
 
@@ -498,7 +499,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     // map. If an attempt has been updated, it replaces the old attempt in the list.
     val newAppMap = new mutable.HashMap[String, FsApplicationHistoryInfo]()
 
-    applications.synchronized {
+    applicationsLock.synchronized {
       newAttempts.foreach { attempt =>
         val appInfo = newAppMap.get(attempt.appId)
           .orElse(applications.get(attempt.appId))
@@ -557,19 +558,20 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
       // Scan all logs from the log directory.
       // Only completed applications older than the specified max age will be deleted.
-      applications.values.foreach { app =>
-        val (toClean, toRetain) = app.attempts.partition(shouldClean)
-        attemptsToClean ++= toClean
+      applicationsLock.synchronized {
+        applications.values.foreach { app =>
+          val (toClean, toRetain) = app.attempts.partition(shouldClean)
+          attemptsToClean ++= toClean
 
-        if (toClean.isEmpty) {
-          appsToRetain += (app.id -> app)
-        } else if (toRetain.nonEmpty) {
-          appsToRetain += (app.id ->
-            new FsApplicationHistoryInfo(app.id, app.name, toRetain.toList))
+          if (toClean.isEmpty) {
+            appsToRetain += (app.id -> app)
+          } else if (toRetain.nonEmpty) {
+            appsToRetain += (app.id ->
+              new FsApplicationHistoryInfo(app.id, app.name, toRetain.toList))
+          }
         }
+        applications = appsToRetain
       }
-
-      applications = appsToRetain
 
       val leftToClean = new mutable.ListBuffer[FsApplicationAttemptInfo]
       attemptsToClean.foreach { attempt =>
