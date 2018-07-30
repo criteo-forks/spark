@@ -186,7 +186,8 @@ private[spark] class SerializerManager(
       blockId: BlockId,
       values: Iterator[_],
       classTag: ClassTag[_]): ChunkedByteBuffer = {
-    val bbos = new ChunkedByteBufferOutputStream(1024 * 1024 * 4, ByteBuffer.allocate)
+    val size = conf.getSizeAsMb("spark.memory.chunkSize", "4").toInt
+    val bbos = new ChunkedByteBufferOutputStream(1024 * 1024 * size, ByteBuffer.allocate)
     val byteStream = new BufferedOutputStream(bbos)
     val autoPick = !blockId.isInstanceOf[StreamBlockId]
     val ser = getSerializer(classTag, autoPick).newInstance()
