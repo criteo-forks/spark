@@ -100,13 +100,6 @@ private[history] abstract class ApplicationHistoryProvider {
   def getListing(): Iterator[ApplicationInfo]
 
   /**
-    * Returns the number of applications
-    *
-    * @return The number of applications
-    */
-  def countApplications(): Long
-
-  /**
    * Returns the Spark UI for a specific application.
    *
    * @param appId The application ID.

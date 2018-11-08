@@ -290,10 +290,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       .map(_.toApplicationInfo())
   }
 
-  override def countApplications(): Long = {
-    listing.count(classOf[ApplicationInfoWrapper])
-  }
-
   override def getApplicationInfo(appId: String): Option[ApplicationInfo] = {
     try {
       Some(load(appId).toApplicationInfo())

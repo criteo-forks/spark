@@ -183,10 +183,6 @@ class HistoryServer(
     provider.getListing()
   }
 
-  def countApplications(): Long = {
-    provider.countApplications()
-  }
-
   def getEventLogsUnderProcess(): Int = {
     provider.getEventLogsUnderProcess()
   }
