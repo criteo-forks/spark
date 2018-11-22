@@ -313,6 +313,12 @@ package object config {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
+  private[spark] val UI_REQUEST_HEADER_SIZE =
+    ConfigBuilder("spark.ui.requestHeaderSize")
+      .doc("Value for HTTP request header size in bytes.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8k")
+
   private[spark] val TASK_METRICS_TRACK_UPDATED_BLOCK_STATUSES =
     ConfigBuilder("spark.taskMetrics.trackUpdatedBlockStatuses")
       .doc("Enable tracking of updatedBlockStatuses in the TaskMetrics. Off by default since " +
@@ -320,4 +326,5 @@ package object config {
         "spark.")
       .booleanConf
       .createWithDefault(false)
+
 }
