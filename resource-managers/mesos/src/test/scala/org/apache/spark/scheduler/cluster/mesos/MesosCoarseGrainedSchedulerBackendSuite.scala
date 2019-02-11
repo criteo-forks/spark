@@ -177,6 +177,48 @@ class MesosCoarseGrainedSchedulerBackendSuite extends SparkFunSuite
     verifyDeclinedOffer(driver, createOfferId("o1"))
   }
 
+  test("mesos supports spark.mesos.networkBandwidth") {
+    val claimedNetworkBandwidth = 40
+    setBackend(Map("spark.mesos.networkBandwidth" -> claimedNetworkBandwidth.toString))
+
+    val executorMemory = backend.executorMemory(sc)
+    val offers = List(Resources(executorMemory, 1, 0, 0, 100))
+    offerResources(offers)
+
+    val taskInfos = verifyTaskLaunched(driver, "o1")
+    assert(taskInfos.length == 1)
+
+    val taskNetworkBandwidth = backend.getResource(taskInfos.head.getResourcesList,
+      "network_bandwidth")
+    assert(taskNetworkBandwidth == claimedNetworkBandwidth)
+  }
+
+  test("mesos supports unset spark.mesos.networkBandwidth") {
+    setBackend()
+
+    val executorMemory = backend.executorMemory(sc)
+    val offers = List(Resources(executorMemory, 1, 0, 0, 100))
+    offerResources(offers)
+
+    val taskInfos = verifyTaskLaunched(driver, "o1")
+    assert(taskInfos.length == 1)
+
+    val taskNetworkBandwidth = backend.getResource(taskInfos.head.getResourcesList,
+      "network_bandwidth")
+    assert(taskNetworkBandwidth == 0)
+  }
+
+  test("mesos declines offer if not enough network bandwidth available") {
+    val claimedNetworkBandwidth = 400
+    setBackend(Map("spark.mesos.disk" -> claimedNetworkBandwidth.toString))
+
+    val executorMemory = backend.executorMemory(sc)
+    val offers = List(Resources(executorMemory, 1, 0, 0, 100))
+    offerResources(offers)
+
+    verifyDeclinedOffer(driver, createOfferId("o1"))
+  }
+
   test("mesos does not acquire more than spark.cores.max") {
     val maxCores = 10
     setBackend(Map("spark.cores.max" -> maxCores.toString))
@@ -723,7 +765,8 @@ class MesosCoarseGrainedSchedulerBackendSuite extends SparkFunSuite
     verifyTaskLaunched(driver, "o1")
   }
 
-  private case class Resources(mem: Int, cpus: Int, gpus: Int = 0, disk: Int = 0)
+  private case class Resources(mem: Int, cpus: Int, gpus: Int = 0, disk: Int = 0,
+                               networkBandwidth: Int = 0)
 
   private def registerMockExecutor(executorId: String, slaveId: String, cores: Integer) = {
     val mockEndpointRef = mock[RpcEndpointRef]
@@ -746,7 +789,7 @@ class MesosCoarseGrainedSchedulerBackendSuite extends SparkFunSuite
   private def offerResources(offers: List[Resources], startId: Int = 1): Unit = {
     val mesosOffers = offers.zipWithIndex.map {case (offer, i) =>
       createOffer(s"o${i + startId}", s"s${i + startId}", offer.mem, offer.cpus, None, offer.gpus,
-        offer.disk)}
+        offer.disk, offer.networkBandwidth)}
 
     backend.resourceOffers(driver, mesosOffers.asJava)
   }

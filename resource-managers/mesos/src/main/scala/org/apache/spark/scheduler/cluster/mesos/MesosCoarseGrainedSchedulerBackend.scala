@@ -82,6 +82,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
 
   private val maxGpus = conf.getInt("spark.mesos.gpus.max", 0)
   private val diskPerExecutor = conf.getInt("spark.mesos.disk", 0)
+  private val networkBandwidthPerExecutor = conf.getInt("spark.mesos.networkBandwidth", 0)
 
   private val taskLabels = conf.get("spark.mesos.task.labels", "")
 
@@ -504,11 +505,13 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
           val taskCPUs = executorCores(offerCPUs)
           val taskMemory = executorMemory(sc)
           val taskDisk = diskPerExecutor
+          val taskNetworkBandwidth = networkBandwidthPerExecutor
 
           slaves.getOrElseUpdate(slaveId, new Slave(offer.getHostname)).taskIDs.add(taskId)
 
           val (resourcesLeft, resourcesToUse) =
-            partitionTaskResources(resources, taskCPUs, taskMemory, taskGPUs, taskDisk)
+            partitionTaskResources(resources, taskCPUs, taskMemory, taskGPUs, taskDisk,
+              taskNetworkBandwidth)
 
           val taskBuilder = MesosTaskInfo.newBuilder()
             .setTaskId(TaskID.newBuilder().setValue(taskId.toString).build())
@@ -542,7 +545,8 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       taskCPUs: Int,
       taskMemory: Int,
       taskGPUs: Int,
-      taskDisk: Int)
+      taskDisk: Int,
+      taskNetworkBandwidth: Int)
     : (List[Resource], List[Resource]) = {
 
     // partition cpus & mem
@@ -553,16 +557,18 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       partitionResources(afterMemResources.asJava, "gpus", taskGPUs)
     val (afterDiskResources, diskResourcesToUse) =
       partitionResources(afterGPUResources.asJava, "disk", taskDisk)
+    val (afterNetworkBandwidthResources, networkBandwidthToUse) =
+      partitionResources(afterDiskResources.asJava, "network_bandwidth", taskNetworkBandwidth)
 
     // If user specifies port numbers in SparkConfig then consecutive tasks will not be launched
     // on the same host. This essentially means one executor per host.
     // TODO: handle network isolator case
     val (nonPortResources, portResourcesToUse) =
-      partitionPortResources(nonZeroPortValuesFromConfig(sc.conf), afterDiskResources)
+      partitionPortResources(nonZeroPortValuesFromConfig(sc.conf), afterNetworkBandwidthResources)
 
     (nonPortResources,
       cpuResourcesToUse ++ memResourcesToUse ++ portResourcesToUse ++ gpuResourcesToUse
-        ++ diskResourcesToUse)
+        ++ diskResourcesToUse ++ networkBandwidthToUse)
   }
 
   private def canLaunchTask(slaveId: String, offerHostname: String,
@@ -570,6 +576,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
     val offerMem = getResource(resources, "mem")
     val offerCPUs = getResource(resources, "cpus").toInt
     val offerDisk = getResource(resources, "disk").toInt
+    val offerNetworkBandwidth = getResource(resources, "network_bandwidth").toInt
     val cpus = executorCores(offerCPUs)
     val mem = executorMemory(sc)
     val ports = getRangeResource(resources, "ports")
@@ -581,6 +588,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       mem <= offerMem &&
       numExecutors < executorLimit &&
       diskPerExecutor <= offerDisk &&
+      networkBandwidthPerExecutor <= offerNetworkBandwidth &&
       slaves.get(slaveId).map(_.taskFailures).getOrElse(0) < MAX_SLAVE_FAILURES &&
       meetsPortRequirements &&
       satisfiesLocality(offerHostname)

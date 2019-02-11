@@ -657,6 +657,15 @@ See the [configuration page](configuration.html) for information on Spark config
   </td>
 </tr>
 <tr>
+  <td><code>spark.mesos.networkBandwidth</code></td>
+  <td><code>0</code></td>
+  <td>
+    Set the amount of network bandwidth to acquire for this job. If not provided, Mesos will allocate a default amount of network bandwidth
+    computed from the number of CPUs allocated to the executor. It's better to always specify an amount otherwise some resources accepted
+    by Spark might be rejected later by Mesos since no matching can be done against network bandwidth.
+  </td>
+</tr>
+<tr>
   <td><code>spark.mesos.network.name</code></td>
   <td><code>(none)</code></td>
   <td>
