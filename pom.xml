@@ -2482,6 +2482,14 @@
               <include>org.jpmml:*</include>
             </includes>
           </artifactSet>
+          <filters>
+            <filter>
+              <artifact>org.eclipse.jetty:jetty-server</artifact>
+              <excludes>
+                <exclude>org/eclipse/jetty/server/handler/ContextHandlerCollection**</exclude>
+              </excludes>
+            </filter>
+          </filters>
           <relocations>
             <relocation>
               <pattern>org.eclipse.jetty</pattern>
