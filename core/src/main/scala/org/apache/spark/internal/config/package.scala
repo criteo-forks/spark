@@ -62,6 +62,9 @@ package object config {
 
   private[spark] val CPUS_PER_TASK = ConfigBuilder("spark.task.cpus").intConf.createWithDefault(1)
 
+  private[spark] val DYN_ALLOCATION_IGNORE_TASK_LOCALITY =
+    ConfigBuilder("spark.dynamicAllocation.ignoreTaskLocality").booleanConf.createWithDefault(false)
+
   private[spark] val DYN_ALLOCATION_MIN_EXECUTORS =
     ConfigBuilder("spark.dynamicAllocation.minExecutors").intConf.createWithDefault(0)
 
