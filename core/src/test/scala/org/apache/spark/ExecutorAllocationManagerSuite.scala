@@ -974,6 +974,39 @@ class ExecutorAllocationManagerSuite
       Map("host2" -> 1, "host3" -> 2, "host4" -> 1, "host5" -> 2))
   }
 
+  test("Ignore locality preference") {
+    sc = createSparkContext(2, 5, 3, true)
+    val manager = sc.executorAllocationManager.get
+
+    val localityPreferences1 = Seq(
+      Seq(TaskLocation("host1"), TaskLocation("host2"), TaskLocation("host3")),
+      Seq(TaskLocation("host1"), TaskLocation("host2"), TaskLocation("host4")),
+      Seq(TaskLocation("host2"), TaskLocation("host3"), TaskLocation("host4")),
+      Seq.empty,
+      Seq.empty
+    )
+    val stageInfo1 = createStageInfo(1, 5, localityPreferences1)
+    post(sc.listenerBus, SparkListenerStageSubmitted(stageInfo1))
+
+    assert(localityAwareTasks(manager) === 0)
+    assert(hostToLocalTaskCount(manager) === Map.empty)
+
+    val localityPreferences2 = Seq(
+      Seq(TaskLocation("host2"), TaskLocation("host3"), TaskLocation("host5")),
+      Seq(TaskLocation("host3"), TaskLocation("host4"), TaskLocation("host5")),
+      Seq.empty
+    )
+    val stageInfo2 = createStageInfo(2, 3, localityPreferences2)
+    post(sc.listenerBus, SparkListenerStageSubmitted(stageInfo2))
+
+    assert(localityAwareTasks(manager) === 0)
+    assert(hostToLocalTaskCount(manager) === Map.empty)
+
+    post(sc.listenerBus, SparkListenerStageCompleted(stageInfo1))
+    assert(localityAwareTasks(manager) === 0)
+    assert(hostToLocalTaskCount(manager) === Map.empty)
+  }
+
   test("SPARK-8366: maxNumExecutorsNeeded should properly handle failed tasks") {
     sc = createSparkContext()
     val manager = sc.executorAllocationManager.get
@@ -1144,7 +1177,8 @@ class ExecutorAllocationManagerSuite
   private def createSparkContext(
       minExecutors: Int = 1,
       maxExecutors: Int = 5,
-      initialExecutors: Int = 1): SparkContext = {
+      initialExecutors: Int = 1,
+      ignoreTaskLocality: Boolean = false): SparkContext = {
     val conf = new SparkConf()
       .setMaster("myDummyLocalExternalClusterManager")
       .setAppName("test-executor-allocation-manager")
@@ -1161,6 +1195,7 @@ class ExecutorAllocationManagerSuite
       // SPARK-22864: effectively disable the allocation schedule by setting the period to a
       // really long value.
       .set(TESTING_SCHEDULE_INTERVAL_KEY, "10000")
+      .set("spark.dynamicAllocation.ignoreTaskLocality", ignoreTaskLocality.toString)
     val sc = new SparkContext(conf)
     contexts += sc
     sc

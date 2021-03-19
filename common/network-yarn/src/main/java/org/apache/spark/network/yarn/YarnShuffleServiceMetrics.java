@@ -18,7 +18,6 @@
 package org.apache.spark.network.yarn;
 
 import com.codahale.metrics.*;
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.metrics2.MetricsCollector;
 import org.apache.hadoop.metrics2.MetricsInfo;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
@@ -52,7 +51,8 @@ public class YarnShuffleServiceMetrics implements MetricsSource {
     }
   }
 
-  public static void collectMetric(MetricsRecordBuilder metricsRecordBuilder, String name, Metric metric) {
+  public static void collectMetric(
+    MetricsRecordBuilder metricsRecordBuilder, String name, Metric metric) {
 
     // The metric types used in ExternalShuffleBlockHandler.ShuffleMetrics
     if (metric instanceof Timer) {
