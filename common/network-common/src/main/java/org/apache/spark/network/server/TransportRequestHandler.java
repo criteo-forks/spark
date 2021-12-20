@@ -123,12 +123,14 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.trace("Received req from {} to fetch block {}", getRemoteAddress(channel),
         req.streamChunkId);
     }
-    long chunksBeingTransferred = streamManager.chunksBeingTransferred();
-    if (chunksBeingTransferred >= maxChunksBeingTransferred) {
-      logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
-        chunksBeingTransferred, maxChunksBeingTransferred);
-      channel.close();
-      return;
+    if (maxChunksBeingTransferred < Long.MAX_VALUE) {
+      long chunksBeingTransferred = streamManager.chunksBeingTransferred();
+      if (chunksBeingTransferred >= maxChunksBeingTransferred) {
+        logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
+                chunksBeingTransferred, maxChunksBeingTransferred);
+        channel.close();
+        return;
+      }
     }
     ManagedBuffer buf;
     try {
@@ -154,12 +156,14 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
         req.streamId);
     }
 
-    long chunksBeingTransferred = streamManager.chunksBeingTransferred();
-    if (chunksBeingTransferred >= maxChunksBeingTransferred) {
-      logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
-        chunksBeingTransferred, maxChunksBeingTransferred);
-      channel.close();
-      return;
+    if (maxChunksBeingTransferred < Long.MAX_VALUE) {
+      long chunksBeingTransferred = streamManager.chunksBeingTransferred();
+      if (chunksBeingTransferred >= maxChunksBeingTransferred) {
+        logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
+                chunksBeingTransferred, maxChunksBeingTransferred);
+        channel.close();
+        return;
+      }
     }
     ManagedBuffer buf;
     try {
