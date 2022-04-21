@@ -56,6 +56,11 @@ class StageInfo(
     completionTime = Some(System.currentTimeMillis)
   }
 
+  /**
+   * backported from https://github.com/criteo-forks/spark/commit/40b983c3b44b6771f07302ce87987fa4716b5ebf
+   */
+  def attemptNumber(): Int = attemptId
+
   private[spark] def getStatusString: String = {
     if (completionTime.isDefined) {
       if (failureReason.isDefined) {
