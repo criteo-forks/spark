@@ -96,50 +96,13 @@ def _make_cell_set_template_code():
     invalid syntax on Python 2. If we use this function we also don't need
     to do the weird freevars/cellvars swap below
     """
-    def inner(value):
-        lambda: cell  # make ``cell`` a closure so that we get a STORE_DEREF
+    cell = None
+
+    def _stub(value):
+        nonlocal cell
         cell = value
 
-    co = inner.__code__
-
-    # NOTE: we are marking the cell variable as a free variable intentionally
-    # so that we simulate an inner function instead of the outer function. This
-    # is what gives us the ``nonlocal`` behavior in a Python 2 compatible way.
-    if not PY3:
-        return types.CodeType(
-            co.co_argcount,
-            co.co_nlocals,
-            co.co_stacksize,
-            co.co_flags,
-            co.co_code,
-            co.co_consts,
-            co.co_names,
-            co.co_varnames,
-            co.co_filename,
-            co.co_name,
-            co.co_firstlineno,
-            co.co_lnotab,
-            co.co_cellvars,  # this is the trickery
-            (),
-        )
-    else:
-        return types.CodeType(
-            co.co_argcount,
-            co.co_kwonlyargcount,
-            co.co_nlocals,
-            co.co_stacksize,
-            co.co_flags,
-            co.co_code,
-            co.co_consts,
-            co.co_names,
-            co.co_varnames,
-            co.co_filename,
-            co.co_name,
-            co.co_firstlineno,
-            co.co_lnotab,
-            co.co_cellvars,  # this is the trickery
-            (),
-        )
+    return _stub
 
 
 _cell_set_template_code = _make_cell_set_template_code()
