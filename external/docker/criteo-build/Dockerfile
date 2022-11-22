@@ -20,6 +20,9 @@ WORKDIR /root
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# Without the following plugin yum fails to install packages with
+# Rpmdb checksum is invalid: dCDPT(pkg checksums)....
+RUN yum -y install yum-plugin-ovl
 RUN yum groupinstall -y 'Development Tools'
 RUN yum install -y \
         ant \
