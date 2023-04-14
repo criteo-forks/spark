@@ -2548,7 +2548,6 @@
       </properties>
     </profile>
 
-
     <profile>
       <id>yarn</id>
       <modules>
