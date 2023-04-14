@@ -61,13 +61,9 @@ If unset, Spark will build against Hadoop 2.6.X by default.
 You can enable the `yarn` profile and optionally set the `yarn.version` property if it is different 
 from `hadoop.version`.
 
-Examples:
+Example:
 
-    # Apache Hadoop 2.6.X
-    ./build/mvn -Pyarn -DskipTests clean package
-
-    # Apache Hadoop 2.7.X and later
-    ./build/mvn -Pyarn -Phadoop-2.7 -Dhadoop.version=2.7.3 -DskipTests clean package
+    ./build/mvn -Pyarn -Dhadoop.version=2.8.5 -DskipTests clean package
 
 ## Building With Hive and JDBC Support
 
