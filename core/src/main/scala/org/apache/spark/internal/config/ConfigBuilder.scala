@@ -127,7 +127,7 @@ private[spark] class TypedConfigBuilder[T](
   /** Creates a [[ConfigEntry]] that does not have a default value. */
   def createOptional: OptionalConfigEntry[T] = {
     val entry = new OptionalConfigEntry[T](parent.key, converter, stringConverter, parent._doc,
-      parent._public)
+      parent._public, parent._version)
     parent._onCreate.foreach(_(entry))
     entry
   }
@@ -141,7 +141,7 @@ private[spark] class TypedConfigBuilder[T](
     } else {
       val transformedDefault = converter(stringConverter(default))
       val entry = new ConfigEntryWithDefault[T](parent.key, transformedDefault, converter,
-        stringConverter, parent._doc, parent._public)
+        stringConverter, parent._doc, parent._public, parent._version)
       parent._onCreate.foreach(_(entry))
       entry
     }
@@ -150,7 +150,7 @@ private[spark] class TypedConfigBuilder[T](
   /** Creates a [[ConfigEntry]] with a function to determine the default value */
   def createWithDefaultFunction(defaultFunc: () => T): ConfigEntry[T] = {
     val entry = new ConfigEntryWithDefaultFunction[T](parent.key, defaultFunc, converter,
-      stringConverter, parent._doc, parent._public)
+      stringConverter, parent._doc, parent._public, parent._version)
     parent._onCreate.foreach(_ (entry))
     entry
   }
@@ -161,7 +161,7 @@ private[spark] class TypedConfigBuilder[T](
    */
   def createWithDefaultString(default: String): ConfigEntry[T] = {
     val entry = new ConfigEntryWithDefaultString[T](parent.key, default, converter, stringConverter,
-      parent._doc, parent._public)
+      parent._doc, parent._public, parent._version)
     parent._onCreate.foreach(_(entry))
     entry
   }
@@ -179,6 +179,7 @@ private[spark] case class ConfigBuilder(key: String) {
 
   private[config] var _public = true
   private[config] var _doc = ""
+  private[config] var _version = ""
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
 
   def internal(): ConfigBuilder = {
@@ -188,6 +189,11 @@ private[spark] case class ConfigBuilder(key: String) {
 
   def doc(s: String): ConfigBuilder = {
     _doc = s
+    this
+  }
+
+  def version(v: String): ConfigBuilder = {
+    _version = v
     this
   }
 
@@ -229,7 +235,7 @@ private[spark] case class ConfigBuilder(key: String) {
   }
 
   def fallbackConf[T](fallback: ConfigEntry[T]): ConfigEntry[T] = {
-    new FallbackConfigEntry(key, _doc, _public, fallback)
+    new FallbackConfigEntry(key, _doc, _public, _version, fallback)
   }
 
   def regexConf: TypedConfigBuilder[Regex] = {
