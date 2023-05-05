@@ -10,7 +10,7 @@ NEXUS_ARTIFACT_URL=$5
 NEXUS_PYPY_URL=$6
 
 # Load HDP_VERSION and HIVE_VERSION
-source ./build_config.sh
+source external/docker/criteo-build/build_config.sh
 
 TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
 VERSION_SUFFIX="criteo-${TIMESTAMP}"
