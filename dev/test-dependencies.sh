@@ -31,7 +31,6 @@ export LC_ALL=C
 # NOTE: These should match those in the release publishing script
 MVN="build/mvn"
 HADOOP_PROFILES=(
-    hadoop-2.6
     hadoop-2.7
     hadoop-3.1
 )
