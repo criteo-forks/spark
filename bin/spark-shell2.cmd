@@ -37,7 +37,7 @@ if "x%SPARK_SUBMIT_OPTS%"=="x" (
   set SPARK_SUBMIT_OPTS=-Dscala.usejavacp=true
   goto run_shell
 )
-set SPARK_SUBMIT_OPTS="%SPARK_SUBMIT_OPTS% -Dscala.usejavacp=true"
+set SPARK_SUBMIT_OPTS="-Dspark.dynamicAllocation.enabled=true -Dspark.dynamicAllocation.cachedExecutorIdleTimeout=18h -Dspark.shuffle.service.enabled=true -Dspark.dynamicAllocation.maxExecutors=100 %SPARK_SUBMIT_OPTS% -Dscala.usejavacp=true"
 
 :run_shell
 "%SPARK_HOME%\bin\spark-submit2.cmd" --class org.apache.spark.repl.Main --name "Spark shell" %*

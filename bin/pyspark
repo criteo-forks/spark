@@ -74,4 +74,5 @@ fi
 
 export PYSPARK_DRIVER_PYTHON
 export PYSPARK_DRIVER_PYTHON_OPTS
+export SPARK_SUBMIT_OPTS="-Dspark.dynamicAllocation.enabled=true -Dspark.dynamicAllocation.cachedExecutorIdleTimeout=18h -Dspark.shuffle.service.enabled=true -Dspark.dynamicAllocation.maxExecutors=100 $SPARK_SUBMIT_OPTS"
 exec "${SPARK_HOME}"/bin/spark-submit pyspark-shell-main --name "PySparkShell" "$@"

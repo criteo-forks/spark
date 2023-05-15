@@ -42,7 +42,7 @@ Scala REPL options:
 # do this specifically for the Spark shell because the scala REPL
 # has its own class loader, and any additional classpath specified
 # through spark.driver.extraClassPath is not automatically propagated.
-SPARK_SUBMIT_OPTS="$SPARK_SUBMIT_OPTS -Dscala.usejavacp=true"
+SPARK_SUBMIT_OPTS="-Dspark.dynamicAllocation.enabled=true -Dspark.dynamicAllocation.cachedExecutorIdleTimeout=18h -Dspark.shuffle.service.enabled=true -Dspark.dynamicAllocation.maxExecutors=100 $SPARK_SUBMIT_OPTS -Dscala.usejavacp=true "
 
 function main() {
   if $cygwin; then
