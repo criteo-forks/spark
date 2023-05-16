@@ -1,7 +1,7 @@
 wheel
 numpy
 pandas
-pypandoc
+pypandoc==1.5
 py4j==0.10.7
 pyarrow
 twine

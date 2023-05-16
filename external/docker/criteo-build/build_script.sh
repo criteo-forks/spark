@@ -1,4 +1,5 @@
 set -x
+set -e
 
 MAVEN_USER=$1
 MAVEN_PASSWORD=$2
@@ -20,7 +21,7 @@ if [ ${SCALA_RELEASE} == "2.12" ]; then
     MVN_SCALA_PROPERTY="-Pscala-2.12"
 elif [ ${SCALA_RELEASE} == "2.11" ]; then
     ./dev/change-scala-version.sh 2.11
-    MVN_SCALA_PROPERTY="-Dscala-2.11"
+    MVN_SCALA_PROPERTY="-Pscala-2.11"
 else
     echo "[ERROR] Scala release not provided"
     exit 1
@@ -36,83 +37,81 @@ MVN_HDP_ARTIFACT_VERSION="${MVN_ARTIFACT_VERSION}-${HDP_VERSION}"
 SHUFFLE_SERVICE_JAR_FILE="dist/yarn/spark-${CRITEO_VERSION}-yarn-shuffle.jar"
 MVN_COMMON_PROPERTIES="-Dhive.version=${HIVE_VERSION} ${MVN_SCALA_PROPERTY}"
 MVN_COMMON_PROPERTIES_NO_TESTS="${MVN_COMMON_PROPERTIES} -DskipTests"
-MVN_COMMON_NEXUS_PROPERTIES="-DrepositoryId=criteo -Dcriteo.repo.username=${MAVEN_USER} -Dcriteo.repo.password=${MAVEN_PASSWORD} -DretryFailedDeploymentCount=3"
+MVN_COMMON_DEPLOY_FILE_PROPERTIES="-Durl=${NEXUS_ARTIFACT_URL} -DrepositoryId=criteo -Dcriteo.repo.username=${MAVEN_USER} -Dcriteo.repo.password=${MAVEN_PASSWORD} -DretryFailedDeploymentCount=3"
 
 # do some house cleaning
-mvn clean
+mvn --no-transfer-progress clean
 rm -f spark-*.tgz
 rm -f dist/python/dist/*
 rm -f python/dist/*
 
 # change version
-mvn versions:set -DnewVersion=${CRITEO_VERSION}
+mvn --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
 # Build distribution with hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -Phive -Phive-thriftserver -Pyarn -Dhadoop.version=${HDP_VERSION} ${MVN_COMMON_PROPERTIES_NO_TESTS}
+./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp  -Phive -Phive-thriftserver -Pyarn -Dhadoop.version=${HDP_VERSION} ${MVN_COMMON_PROPERTIES_NO_TESTS}
 
 # tgz artifact deployment
-mvn deploy:deploy-file \\
-    --batch-mode \\
-    -DgroupId=com.criteo.tarballs \\
-    -DartifactId=spark \\
-    -Dversion=${MVN_HDP_ARTIFACT_VERSION} \\
-    -Dpackaging=tar.gz \\
-    -Dfile=${SPARK_HDP_ARTIFACT_FILE} \\
-    -Durl=${NEXUS_ARTIFACT_URL} \\
-    ${MVN_COMMON_NEXUS_PROPERTIES}
+mvn deploy:deploy-file \
+    --batch-mode \
+    -DgroupId=com.criteo.tarballs \
+    -DartifactId=spark \
+    -Dversion=${MVN_HDP_ARTIFACT_VERSION} \
+    -Dpackaging=tar.gz \
+    -Dfile=${SPARK_HDP_ARTIFACT_FILE} \
+    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # Build distribution without hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -Phive -Phive-thriftserver -Pyarn -Phadoop-provided ${MVN_COMMON_PROPERTIES}
+./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp  -Phive -Phive-thriftserver -Pyarn -Phadoop-provided ${MVN_COMMON_PROPERTIES}
 # tgz artifact deployment
-mvn deploy:deploy-file \\
-    --batch-mode \\
-    -DgroupId=com.criteo.tarballs \\
-    -DartifactId=spark \\
-    -Dversion=${MVN_ARTIFACT_VERSION} \\
-    -Dpackaging=tar.gz \\
-    -Dfile=${SPARK_ARTIFACT_FILE} \\
-    -Durl=${NEXUS_ARTIFACT_URL} \\
-    ${MVN_COMMON_NEXUS_PROPERTIES}
+mvn deploy:deploy-file \
+    --batch-mode \
+    -DgroupId=com.criteo.tarballs \
+    -DartifactId=spark \
+    -Dversion=${MVN_ARTIFACT_VERSION} \
+    -Dpackaging=tar.gz \
+    -Dfile=${SPARK_ARTIFACT_FILE} \
+    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # Create archive with jars only
-cd dist/jars && tar -czf ${OLDPWD}/${SPARK_JARS_ARTIFACT_FILE} dist/jars; cd $OLDPWD
+cd dist/jars && tar -czf ${OLDPWD}/${SPARK_JARS_ARTIFACT_FILE} *.jar; cd $OLDPWD
 
 # Deploy tgz jars only artifact
-mvn deploy:deploy-file \\
-    --batch-mode \\
-    -DgroupId=com.criteo.tarballs \\
-    -DartifactId=spark \\
-    -Dversion=${MVN_ARTIFACT_VERSION} \\
-    -Dpackaging=tar.gz \\
-    -Dfile=${SPARK_JARS_ARTIFACT_FILE} \\
-    -Durl=${NEXUS_ARTIFACT_URL} \\
-    ${MVN_COMMON_NEXUS_PROPERTIES}
+mvn deploy:deploy-file \
+    --batch-mode \
+    -DgroupId=com.criteo.tarballs \
+    -DartifactId=spark-jars \
+    -Dversion=${MVN_ARTIFACT_VERSION} \
+    -Dpackaging=tar.gz \
+    -Dfile=${SPARK_JARS_ARTIFACT_FILE} \
+    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # shuffle service deployment
-mvn deploy:deploy-file \\
-    --batch-mode \\
-    -DgroupId=org.apache.spark \\
-    -DartifactId=yarn-shuffle_${SCALA_RELEASE} \\
-    -Dversion=${CRITEO_VERSION} \\
-    -Dpackaging=jar \\
-    -Dfile=${SHUFFLE_SERVICE_JAR_FILE} \\
-    -Durl=${NEXUS_ARTIFACT_URL} \\
-    ${MVN_COMMON_NEXUS_PROPERTIES}
+mvn deploy:deploy-file \
+    --batch-mode \
+    -DgroupId=org.apache.spark \
+    -DartifactId=yarn-shuffle_${SCALA_RELEASE} \
+    -Dversion=${CRITEO_VERSION} \
+    -Dpackaging=jar \
+    -Dfile=${SHUFFLE_SERVICE_JAR_FILE} \
+    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # jar artifacts (for parent poms) deployment
-mvn jar:jar deploy:deploy \\
-    --batch-mode \\
-    -Phive -Phive-thriftserver \\
-    -Pyarn \\
-    -Phadoop-provided \\
-    -DaltDeploymentRepository=criteo::${NEXUS_ARTIFACT_URL} \\
-    ${MVN_COMMON_NEXUS_PROPERTIES}
+mvn jar:jar deploy:deploy \
+    --batch-mode \
+    -Phive -Phive-thriftserver \
+    -Pyarn \
+    -Phadoop-provided \
+    -DaltDeploymentRepository=criteo::default::${NEXUS_ARTIFACT_URL} \
+    -Dcriteo.repo.username=${MAVEN_USER} \
+    -Dcriteo.repo.password=${MAVEN_PASSWORD}
 
 # python deployment
 pyspark_version=${SPARK_RELEASE}+criteo_${SCALA_RELEASE}.${TIMESTAMP}
 sed -i "s/__version__ = \\\".*\\\"/__version__ = \\\"${pyspark_version}\\\"/g" python/pyspark/version.py
-python2.7 -m venv venv
+python -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
 pip install -r python/requirements.txt
 cd python
 python setup.py bdist_wheel

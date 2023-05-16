@@ -124,7 +124,7 @@
     <flume.version>1.6.0</flume.version>
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>2.13.0</curator.version>
-    <hive.group>org.apache.hive</hive.group>
+    <hive.group>org.spark-project.hive</hive.group>
     <!-- Version used in Maven Hive dependency -->
     <hive.version>1.2.1.spark2</hive.version>
     <!-- Version used for internal directory structure -->
@@ -2161,7 +2161,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.0.0</version>
         </plugin>
         <plugin>
           <groupId>net.alchim31.maven</groupId>
@@ -2555,6 +2555,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+        <version>3.4.1</version>
         <configuration>
           <shadedArtifactAttached>false</shadedArtifactAttached>
           <artifactSet>
@@ -2827,7 +2828,7 @@
     <profile>
       <id>hive-1.2</id>
       <properties>
-        <hive.group>org.apache.hive</hive.group>
+        <hive.group>org.spark-project.hive</hive.group>
         <hive.classifier></hive.classifier>
         <!-- Version used in Maven Hive dependency -->
         <hive.version>1.2.1.spark2</hive.version>
