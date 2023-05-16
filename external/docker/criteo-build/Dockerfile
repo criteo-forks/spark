@@ -57,8 +57,8 @@ RUN yum install -y \
         java-1.8.0-openjdk \
         pinentry-curses \
         pkgconfig \
-        python2-pip \
-        python2-virtualenv \
+        python3-pip \
+        python3-virtualenv \
         rsync \
         ShellCheck \
         sudo \
@@ -86,11 +86,14 @@ ENV MAVEN_OPTS -Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g
 
 
 RUN groupadd --non-unique -g ${GROUP_ID} ${USER_NAME}
-RUN useradd -g ${GROUP_ID} -u ${USER_ID} -k /root -m ${USER_NAME}
+RUN useradd -l -g ${GROUP_ID} -u ${USER_ID} -k /root -m ${USER_NAME}
 RUN echo "${USER_NAME} ALL=NOPASSWD: ALL" > "/etc/sudoers.d/spark-build-${USER_ID}"
 ENV HOME /home/${USER_NAME}
 RUN mkdir /home/${USER_NAME}/.m2 && chown ${USER_NAME}: /home/${USER_NAME}/.m2
-RUN echo '<settings><mirrors><mirror><id>criteo</id><mirrorOf>*</mirrorOf><url>http://nexus.criteo.prod/content/groups/criteodev</url></mirror></mirrors><servers><server><id>criteo</id><username>\\\${criteo.repo.username}</username><password>\\\${criteo.repo.password}</password></server></servers></settings>' > /home/${USER_NAME}/.m2/settings.xml
+RUN echo '<settings><mirrors><mirror><id>criteo</id><mirrorOf>*</mirrorOf><url>http://nexus.criteo.prod/content/groups/criteodev</url></mirror></mirrors><servers><server><id>criteo</id><username>${criteo.repo.username}</username><password>${criteo.repo.password}</password></server></servers></settings>' > /home/${USER_NAME}/.m2/settings.xml
 
+# Alias python3 to python otherwise python 2 is called
+RUN mv /usr/bin/python /usr/bin/python2
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN rm -f /var/log/faillog /var/log/lastlog
