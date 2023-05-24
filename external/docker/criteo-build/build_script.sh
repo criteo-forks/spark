@@ -13,6 +13,21 @@ NEXUS_PYPY_URL=$6
 # Load HDP_VERSION and HIVE_VERSION
 source external/docker/criteo-build/build_config.sh
 
+deploy_python()
+{
+  pyspark_version=$1
+  sed -i "s/__version__: str = \\\".*\\\"/__version__: str = \\\"${pyspark_version}\\\"/g" python/pyspark/version.py
+  python -m venv venv
+  source venv/bin/activate
+  pip install --upgrade pip
+  pip install -r python/requirements.txt
+  cd python
+  python setup.py bdist_wheel
+  twine upload dist/pyspark*whl -u ${TWINE_USERNAME} -p ${TWINE_PASSWORD} --skip-existing --repository-url "${NEXUS_PYPY_URL}/"
+  python setup.py clean --all
+  cd $OLDPWD
+}
+
 TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
 VERSION_SUFFIX="criteo-${TIMESTAMP}"
 
@@ -33,7 +48,9 @@ SPARK_ARTIFACT_FILE="spark-${CRITEO_VERSION}-bin-${SCALA_RELEASE}.tgz"
 SPARK_HDP_ARTIFACT_FILE="spark-${CRITEO_VERSION}-bin-${SCALA_RELEASE}-${HDP_VERSION}.tgz"
 SPARK_JARS_ARTIFACT_FILE="spark-${CRITEO_VERSION}-jars-${SCALA_RELEASE}.tgz"
 MVN_ARTIFACT_VERSION="${CRITEO_VERSION}-${SCALA_RELEASE}"
-MVN_HDP_ARTIFACT_VERSION="${MVN_ARTIFACT_VERSION}-${HDP_VERSION}"
+MVN_HDP_ARTIFACT_VERSION="${MVN_ARTIFACT_VERSION}-hadoop-${HDP_VERSION}"
+PYTHON_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.${TIMESTAMP}"
+PYTHON_HDP_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.hadoop.${HDP_VERSION}.${TIMESTAMP}"
 SHUFFLE_SERVICE_JAR_FILE="dist/yarn/spark-${CRITEO_VERSION}-yarn-shuffle.jar"
 MVN_COMMON_PROPERTIES="-Dhive.version=${HIVE_VERSION} ${MVN_SCALA_PROPERTY}"
 MVN_COMMON_PROPERTIES_NO_TESTS="${MVN_COMMON_PROPERTIES} -DskipTests"
@@ -60,6 +77,8 @@ mvn deploy:deploy-file \
     -Dpackaging=tar.gz \
     -Dfile=${SPARK_HDP_ARTIFACT_FILE} \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
+
+deploy_python $PYTHON_HDP_PEX_VERSION
 
 # Build distribution without hadoop
 ./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp  -Phive -Phive-thriftserver -Pyarn -Phadoop-provided ${MVN_COMMON_PROPERTIES}
@@ -107,12 +126,4 @@ mvn jar:jar deploy:deploy \
     -Dcriteo.repo.password=${MAVEN_PASSWORD}
 
 # python deployment
-pyspark_version=${SPARK_RELEASE}+criteo_${SCALA_RELEASE}.${TIMESTAMP}
-sed -i "s/__version__ = \\\".*\\\"/__version__ = \\\"${pyspark_version}\\\"/g" python/pyspark/version.py
-python -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r python/requirements.txt
-cd python
-python setup.py bdist_wheel
-twine upload dist/pyspark*whl -u ${TWINE_USERNAME} -p ${TWINE_PASSWORD} --skip-existing --repository-url "${NEXUS_PYPY_URL}/"
+deploy_python $PYTHON_PEX_VERSION
