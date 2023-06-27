@@ -3,12 +3,21 @@ set -e
 
 MAVEN_USER=$1
 MAVEN_PASSWORD=$2
-TWINE_USERNAME=$MAVEN_USER
-TWINE_PASSWORD=$MAVEN_PASSWORD
 SCALA_RELEASE=$3
 SPARK_RELEASE=$4
 NEXUS_ARTIFACT_URL=$5
 NEXUS_PYPY_URL=$6
+TIMESTAMP=$7
+
+for var in "$MAVEN_USER" "$MAVEN_PASSWORD" "$SCALA_RELEASE" "$SPARK_RELEASE" "$NEXUS_ARTIFACT_URL" "$NEXUS_PYPY_URL" "$TIMESTAMP"; do
+    if [ -z "$var" ]; then
+        echo "Missing arguments"
+        exit 1
+    fi
+done
+
+TWINE_USERNAME=$MAVEN_USER
+TWINE_PASSWORD=$MAVEN_PASSWORD
 
 # Load HDP_VERSION and HIVE_VERSION
 source external/docker/criteo-build/build_config.sh
@@ -28,7 +37,6 @@ deploy_python()
   cd $OLDPWD
 }
 
-TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
 VERSION_SUFFIX="criteo-${TIMESTAMP}"
 
 if [ ${SCALA_RELEASE} == "2.12" ]; then
@@ -67,7 +75,6 @@ mvn --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
 # Build distribution with hadoop
 ./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz --no-transfer-progress -Phive -Phive-thriftserver -Pyarn -Dhadoop.version=${HDP_VERSION} ${MVN_COMMON_PROPERTIES_NO_TESTS}
-
 # tgz artifact deployment
 mvn deploy:deploy-file \
     --batch-mode \
