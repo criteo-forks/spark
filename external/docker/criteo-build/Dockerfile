@@ -66,11 +66,11 @@ RUN yum install -y \
         wget \
         zlib-devel
 
-# we need maven 3.6.3
+# we need maven 3.8.8
 RUN rm -rf /usr/share/maven  \
-    && wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz  \
-    && tar xf apache-maven-3.6.3-bin.tar.gz -C /usr/share  \
-    && ln -s /usr/share/apache-maven-3.6.3 /usr/share/maven
+    && wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz  \
+    && tar xf apache-maven-3.8.8-bin.tar.gz -C /usr/share  \
+    && ln -s /usr/share/apache-maven-3.8.8 /usr/share/maven
 
 ######
 # Set env vars required to build Hadoop
