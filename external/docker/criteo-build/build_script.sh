@@ -131,6 +131,7 @@ mvn deploy \
     -DaltDeploymentRepository=criteo::default::${NEXUS_ARTIFACT_URL} \
     -Dcriteo.repo.username=${MAVEN_USER} \
     -Dcriteo.repo.password=${MAVEN_PASSWORD} \
+    ${MVN_COMMON_PROPERTIES} \
     -DskipTests
 
 
