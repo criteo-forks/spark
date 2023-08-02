@@ -60,7 +60,7 @@ MVN_HDP_ARTIFACT_VERSION="${MVN_ARTIFACT_VERSION}-hadoop-${HDP_VERSION}"
 PYTHON_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.${TIMESTAMP}"
 PYTHON_HDP_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.hadoop.${HDP_VERSION}.${TIMESTAMP}"
 SHUFFLE_SERVICE_JAR_FILE="dist/yarn/spark-${CRITEO_VERSION}-yarn-shuffle.jar"
-MVN_COMMON_PROPERTIES="-Dhive.version=${HIVE_VERSION} ${MVN_SCALA_PROPERTY}"
+MVN_COMMON_PROPERTIES="-Phive-provided -Phive-thriftserver -Pyarn -Dhive.version=${HIVE_VERSION} -Dhadoop.version=${HDP_VERSION} ${MVN_SCALA_PROPERTY}"
 MVN_COMMON_DEPLOY_FILE_PROPERTIES="-Durl=${NEXUS_ARTIFACT_URL} -DrepositoryId=criteo -Dcriteo.repo.username=${MAVEN_USER} -Dcriteo.repo.password=${MAVEN_PASSWORD} -DretryFailedDeploymentCount=3"
 
 # do some house cleaning
@@ -73,7 +73,7 @@ rm -f python/dist/*
 mvn --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
 # Build distribution with hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp  -Phive -Phive-thriftserver -Pyarn -Dhadoop.version=${HDP_VERSION} ${MVN_COMMON_PROPERTIES}
+./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
 
 # tgz artifact deployment
 mvn deploy:deploy-file \
@@ -88,7 +88,7 @@ mvn deploy:deploy-file \
 deploy_python $PYTHON_HDP_PEX_VERSION
 
 # Build distribution without hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp  -Phive -Phive-thriftserver -Pyarn -Phadoop-provided ${MVN_COMMON_PROPERTIES}
+./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp ${MVN_COMMON_PROPERTIES} -Phadoop-provided
 # tgz artifact deployment
 mvn deploy:deploy-file \
     --batch-mode \
@@ -125,15 +125,12 @@ mvn deploy:deploy-file \
 # jar artifacts (for parent poms) deployment
 mvn deploy \
     --batch-mode \
-    -Phive -Phive-thriftserver \
-    -Pyarn \
+    ${MVN_COMMON_PROPERTIES} \
     -Phadoop-provided \
     -DaltDeploymentRepository=criteo::default::${NEXUS_ARTIFACT_URL} \
     -Dcriteo.repo.username=${MAVEN_USER} \
     -Dcriteo.repo.password=${MAVEN_PASSWORD} \
-    ${MVN_COMMON_PROPERTIES} \
     -DskipTests
-
 
 
 # python deployment
