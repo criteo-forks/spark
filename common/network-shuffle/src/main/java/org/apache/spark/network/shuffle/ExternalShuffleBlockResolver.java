@@ -27,6 +27,9 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricSet;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -136,6 +139,18 @@ public class ExternalShuffleBlockResolver {
 
   public int getRegisteredExecutorsSize() {
     return executors.size();
+  }
+
+  public double getShuffleIndexCacheHitRate() {
+    return shuffleIndexCache.stats().hitRate();
+  }
+
+  public double getShuffleIndexCacheMissRate() {
+    return shuffleIndexCache.stats().missRate();
+  }
+
+  public long getShuffleIndexCacheEvictionCount() {
+    return shuffleIndexCache.stats().evictionCount();
   }
 
   /** Registers a new Executor with all the configuration we need to find its shuffle files. */

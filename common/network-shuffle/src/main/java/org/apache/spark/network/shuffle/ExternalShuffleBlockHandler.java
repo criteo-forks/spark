@@ -189,6 +189,12 @@ public class ExternalShuffleBlockHandler extends RpcHandler {
       allMetrics.put("blockTransferRateBytes", blockTransferRateBytes);
       allMetrics.put("registeredExecutorsSize",
                      (Gauge<Integer>) () -> blockManager.getRegisteredExecutorsSize());
+      allMetrics.put("shuffleIndexCacheHitRate",
+              (Gauge<Double>) () -> blockManager.getShuffleIndexCacheHitRate());
+      allMetrics.put("shuffleIndexCacheMissRate",
+              (Gauge<Double>) () -> blockManager.getShuffleIndexCacheMissRate());
+      allMetrics.put("shuffleIndexCacheEvictionCount",
+              (Gauge<Long>) () -> blockManager.getShuffleIndexCacheEvictionCount());
     }
 
     @Override
