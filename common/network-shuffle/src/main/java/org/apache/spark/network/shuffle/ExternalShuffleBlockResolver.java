@@ -25,6 +25,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricSet;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -112,7 +115,7 @@ public class ExternalShuffleBlockResolver {
           }
         };
     shuffleIndexCache = CacheBuilder.newBuilder()
-                                    .maximumSize(indexCacheEntries).build(indexCacheLoader);
+                                    .maximumSize(indexCacheEntries).recordStats().build(indexCacheLoader);
     db = LevelDBProvider.initLevelDB(this.registeredExecutorFile, CURRENT_VERSION, mapper);
     if (db != null) {
       executors = reloadRegisteredExecutors(db);
@@ -124,6 +127,26 @@ public class ExternalShuffleBlockResolver {
 
   public int getRegisteredExecutorsSize() {
     return executors.size();
+  }
+
+  public double getShuffleIndexCacheHitRate() {
+    return shuffleIndexCache.stats().hitRate();
+  }
+
+  public double getShuffleIndexCacheMissRate() {
+    return shuffleIndexCache.stats().missRate();
+  }
+
+  public long getShuffleIndexCacheEvictionCount() {
+    return shuffleIndexCache.stats().evictionCount();
+  }
+
+  public long getShuffleIndexCacheHitCount() {
+    return shuffleIndexCache.stats().hitCount();
+  }
+
+  public long getShuffleIndexCacheMissCount() {
+    return shuffleIndexCache.stats().missCount();
   }
 
   /** Registers a new Executor with all the configuration we need to find its shuffle files. */
