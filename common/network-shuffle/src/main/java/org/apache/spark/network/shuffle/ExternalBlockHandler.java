@@ -361,6 +361,16 @@ public class ExternalBlockHandler extends RpcHandler
                      (Gauge<Integer>) () -> blockManager.getRegisteredExecutorsSize());
       allMetrics.put("numActiveConnections", activeConnections);
       allMetrics.put("numCaughtExceptions", caughtExceptions);
+      allMetrics.put("shuffleIndexCacheHitRate",
+              (Gauge<Double>) () -> blockManager.getShuffleIndexCacheHitRate());
+      allMetrics.put("shuffleIndexCacheMissRate",
+              (Gauge<Double>) () -> blockManager.getShuffleIndexCacheMissRate());
+      allMetrics.put("shuffleIndexCacheEvictionCount",
+              (Gauge<Long>) () -> blockManager.getShuffleIndexCacheEvictionCount());
+      allMetrics.put("shuffleIndexCacheHitCount",
+              (Gauge<Long>) () -> blockManager.getShuffleIndexCacheHitCount());
+      allMetrics.put("shuffleIndexCacheMissCount",
+              (Gauge<Long>) () -> blockManager.getShuffleIndexCacheMissCount());
     }
 
     @Override
