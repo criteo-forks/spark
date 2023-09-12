@@ -298,7 +298,7 @@ object InMemoryFileIndex extends Logging {
     val filteredLeafStatuses = allLeafStatuses.filterNot(
       status => shouldFilterOut(status.getPath.getName))
     val resolvedLeafStatuses = filteredLeafStatuses.flatMap {
-      Some(f)
+      Some(_)
     }
 
     if (missingFiles.nonEmpty) {
