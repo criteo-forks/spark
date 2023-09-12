@@ -298,35 +298,7 @@ object InMemoryFileIndex extends Logging {
     val filteredLeafStatuses = allLeafStatuses.filterNot(
       status => shouldFilterOut(status.getPath.getName))
     val resolvedLeafStatuses = filteredLeafStatuses.flatMap {
-      case f: LocatedFileStatus =>
-        Some(f)
-
-      // NOTE:
-      //
-      // - Although S3/S3A/S3N file system can be quite slow for remote file metadata
-      //   operations, calling `getFileBlockLocations` does no harm here since these file system
-      //   implementations don't actually issue RPC for this method.
-      //
-      // - Here we are calling `getFileBlockLocations` in a sequential manner, but it should not
-      //   be a big deal since we always use to `listLeafFilesInParallel` when the number of
-      //   paths exceeds threshold.
-      case f =>
-        // The other constructor of LocatedFileStatus will call FileStatus.getPermission(),
-        // which is very slow on some file system (RawLocalFileSystem, which is launch a
-        // subprocess and parse the stdout).
-        try {
-          val locations = fs.getFileBlockLocations(f, 0, f.getLen)
-          val lfs = new LocatedFileStatus(f.getLen, f.isDirectory, f.getReplication, f.getBlockSize,
-            f.getModificationTime, 0, null, null, null, null, f.getPath, locations)
-          if (f.isSymlink) {
-            lfs.setSymlink(f.getSymlink)
-          }
-          Some(lfs)
-        } catch {
-          case _: FileNotFoundException =>
-            missingFiles += f.getPath.toString
-            None
-        }
+      Some(f)
     }
 
     if (missingFiles.nonEmpty) {
