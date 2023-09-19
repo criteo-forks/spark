@@ -20,7 +20,7 @@ package org.apache.spark.deploy
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream, File, IOException}
 import java.security.PrivilegedExceptionAction
 import java.text.DateFormat
-import java.util.{Arrays, Date, Locale}
+import java.util.{Arrays, Comparator, Date, Locale}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Map
@@ -30,15 +30,17 @@ import scala.util.control.NonFatal
 
 import com.google.common.primitives.Longs
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs._
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path, PathFilter}
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier
+import org.apache.hadoop.yarn.security.AMRMTokenIdentifier
 
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.BUFFER_SIZE
+import org.apache.spark.internal.config._
 import org.apache.spark.util.Utils
 
 /**
@@ -154,9 +156,16 @@ private[spark] class SparkHadoopUtil extends Logging {
   private[spark] def addDelegationTokens(tokens: Array[Byte], sparkConf: SparkConf): Unit = {
     UserGroupInformation.setConfiguration(newConfiguration(sparkConf))
     val creds = deserialize(tokens)
+    val filteredCreds = new Credentials()
+    creds.getSecretKeyMap.forEach((k, v) => filteredCreds.addSecretKey(k, v))
+    creds.getTokenMap.forEach((k: org.apache.hadoop.io.Text, token: Token[TokenIdentifier]) => {
+      if (!token.getKind.equals(AMRMTokenIdentifier.KIND_NAME)) {
+        filteredCreds.addToken(k, token)
+      }
+    })
     logInfo("Updating delegation tokens for current user.")
-    logDebug(s"Adding/updating delegation tokens ${dumpTokens(creds)}")
-    addCurrentUserCredentials(creds)
+    logDebug(s"Adding/updating delegation tokens ${dumpTokens(filteredCreds)}")
+    addCurrentUserCredentials(filteredCreds)
   }
 
   /**
