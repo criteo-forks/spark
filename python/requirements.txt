@@ -1,0 +1,8 @@
+wheel
+numpy
+pandas
+pypandoc==1.5
+py4j==0.10.7
+pyarrow
+twine
+cryptography==3.3.1
