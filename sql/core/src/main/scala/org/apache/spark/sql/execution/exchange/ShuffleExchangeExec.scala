@@ -357,7 +357,7 @@ object ShuffleExchangeExec {
             UnsafeExternalRowSorter.PrefixComputer.Prefix = {
               // The hashcode generated from the binary form of a [[UnsafeRow]] should not be null.
               result.isNull = false
-              result.value = row.hashCode()
+              result.value = 19947 // Same value as the BES :)
               result
             }
           }
