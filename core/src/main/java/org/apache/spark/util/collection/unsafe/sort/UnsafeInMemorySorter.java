@@ -60,18 +60,29 @@ public final class UnsafeInMemorySorter {
     public int compare(RecordPointerAndKeyPrefix r1, RecordPointerAndKeyPrefix r2) {
       final int prefixComparisonResult = prefixComparator.compare(r1.keyPrefix, r2.keyPrefix);
       int uaoSize = UnsafeAlignedOffset.getUaoSize();
-      if (prefixComparisonResult == 0) {
+//      if (prefixComparisonResult == 0) {
         final Object baseObject1 = memoryManager.getPage(r1.recordPointer);
         final long baseOffset1 = memoryManager.getOffsetInPage(r1.recordPointer) + uaoSize;
         final int baseLength1 = UnsafeAlignedOffset.getSize(baseObject1, baseOffset1 - uaoSize);
         final Object baseObject2 = memoryManager.getPage(r2.recordPointer);
         final long baseOffset2 = memoryManager.getOffsetInPage(r2.recordPointer) + uaoSize;
         final int baseLength2 = UnsafeAlignedOffset.getSize(baseObject2, baseOffset2 - uaoSize);
+
+        int hash1 = org.apache.spark.unsafe.hash.Murmur3_x86_32.hashUnsafeWords(baseObject1, baseOffset1, baseLength1, 42);
+        int hash2 = org.apache.spark.unsafe.hash.Murmur3_x86_32.hashUnsafeWords(baseObject2, baseOffset2, baseLength2, 42);
+
+        if (hash1 != r1.keyPrefix) {
+          System.out.println("Hash in comparator is different than when prefix was processed");
+        }
+        if (hash2 != r2.keyPrefix) {
+          System.out.println("Hash in comparator is different than when prefix was processed");
+        }
+
         return recordComparator.compare(baseObject1, baseOffset1, baseLength1, baseObject2,
           baseOffset2, baseLength2);
-      } else {
-        return prefixComparisonResult;
-      }
+//      } else {
+//        return prefixComparisonResult;
+//      }
     }
   }
 
