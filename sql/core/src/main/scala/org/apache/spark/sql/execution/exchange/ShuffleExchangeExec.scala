@@ -341,6 +341,7 @@ object ShuffleExchangeExec {
       //
       // Note that we don't perform local sort if the new partitioning has only 1 partition, under
       // that case all output rows go to the same partition.
+      val applicationId = rdd.sparkContext.applicationId
       val newRdd = if (isRoundRobin && SQLConf.get.sortBeforeRepartition) {
         rdd.mapPartitionsInternal { iter =>
           val recordComparatorSupplier = new Supplier[RecordComparator] {
@@ -348,6 +349,10 @@ object ShuffleExchangeExec {
           }
           // The comparator for comparing row hashcode, which should always be Integer.
           val prefixComparator = PrefixComparators.LONG
+
+          val stageId = TaskContext.get().stageId()
+          val stageAttempt = TaskContext.get().stageAttemptNumber()
+          val partitionId = TaskContext.get().partitionId()
 
           // The prefix computer generates row hashcode as the prefix, so we may decrease the
           // probability that the prefixes are equal when input rows choose column values from a
@@ -359,6 +364,31 @@ object ShuffleExchangeExec {
               // The hashcode generated from the binary form of a [[UnsafeRow]] should not be null.
               result.isNull = false
               result.value = row.hashCode()
+
+              import java.io.{FileWriter, PrintWriter}
+              import java.nio.file.{Files, Paths}
+
+              // Convert the file path to a Path object
+              val filePath = f"/tmp/$applicationId/$stageId/$stageAttempt/$partitionId"
+              val path = Paths.get(filePath)
+
+              // Ensure that the parent directories exist
+              val parentDir = path.getParent
+              if (parentDir != null && !Files.exists(parentDir)) {
+                Files.createDirectories(parentDir) // Create any necessary but nonexistent parent directories.
+              }
+
+              val fileWriter = new FileWriter(
+                filePath, true
+              )
+              val printWriter = new PrintWriter(fileWriter)
+
+              try {
+                printWriter.println(f"${result.value} ${row.toString}") // Appends the text to the file
+              } finally {
+                printWriter.close() // Make sure to close the PrintWriter to free up resources
+              }
+
               result
             }
           }
