@@ -352,15 +352,10 @@ object ShuffleExchangeExec {
           // The prefix computer generates row hashcode as the prefix, so we may decrease the
           // probability that the prefixes are equal when input rows choose column values from a
           // limited range.
+          val emptyPrefix = new UnsafeExternalRowSorter.PrefixComputer.Prefix
           val prefixComputer = new UnsafeExternalRowSorter.PrefixComputer {
-            private val result = new UnsafeExternalRowSorter.PrefixComputer.Prefix
             override def computePrefix(row: InternalRow):
-            UnsafeExternalRowSorter.PrefixComputer.Prefix = {
-              // The hashcode generated from the binary form of a [[UnsafeRow]] should not be null.
-              result.isNull = false
-              result.value = row.hashCode()
-              result
-            }
+            UnsafeExternalRowSorter.PrefixComputer.Prefix = emptyPrefix
           }
           val pageSize = SparkEnv.get.memoryManager.pageSizeBytes
 
