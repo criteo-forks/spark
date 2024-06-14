@@ -35,6 +35,7 @@ import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier
+import org.apache.hadoop.yarn.security.AMRMTokenIdentifier
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
@@ -154,9 +155,20 @@ private[spark] class SparkHadoopUtil extends Logging {
   private[spark] def addDelegationTokens(tokens: Array[Byte], sparkConf: SparkConf): Unit = {
     UserGroupInformation.setConfiguration(newConfiguration(sparkConf))
     val creds = deserialize(tokens)
+
+    val filteredCreds = new Credentials()
+    for ((k, v) <- creds.getSecretKeyMap.asScala) {
+      filteredCreds.addSecretKey(k, v)
+    }
+    for ((k, token) <- creds.getTokenMap.asScala) {
+      if (!token.getKind.equals(AMRMTokenIdentifier.KIND_NAME)) {
+        filteredCreds.addToken(k, token)
+      }
+    }
+
     logInfo("Updating delegation tokens for current user.")
-    logDebug(s"Adding/updating delegation tokens ${dumpTokens(creds)}")
-    addCurrentUserCredentials(creds)
+    logDebug(s"Adding/updating delegation tokens ${dumpTokens(filteredCreds)}")
+    addCurrentUserCredentials(filteredCreds)
   }
 
   /**
