@@ -60,7 +60,7 @@ MVN_HDP_ARTIFACT_VERSION="${MVN_ARTIFACT_VERSION}-hadoop-${HDP_VERSION}"
 PYTHON_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.${TIMESTAMP}"
 PYTHON_HDP_PEX_VERSION="${SPARK_RELEASE}+criteo.scala.${SCALA_RELEASE}.hadoop.${HDP_VERSION}.${TIMESTAMP}"
 SHUFFLE_SERVICE_JAR_FILE="dist/yarn/spark-${CRITEO_VERSION}-yarn-shuffle.jar"
-MVN_COMMON_PROPERTIES="-Phive-provided -Phive-thriftserver -Pyarn -Dhive.version=${HIVE_VERSION} -Dhadoop.version=${HDP_VERSION} ${MVN_SCALA_PROPERTY}"
+MVN_COMMON_PROPERTIES="-Phive-thriftserver -Pyarn -Dhive.version=${HIVE_VERSION} -Dhadoop.version=${HDP_VERSION} ${MVN_SCALA_PROPERTY}"
 MVN_COMMON_DEPLOY_FILE_PROPERTIES="-Durl=${NEXUS_ARTIFACT_URL} -DrepositoryId=criteo -Dcriteo.repo.username=${MAVEN_USER} -Dcriteo.repo.password=${MAVEN_PASSWORD} -DretryFailedDeploymentCount=3"
 
 # do some house cleaning
