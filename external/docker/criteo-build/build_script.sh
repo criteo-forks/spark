@@ -8,6 +8,7 @@ SPARK_RELEASE=$4
 NEXUS_ARTIFACT_URL=$5
 NEXUS_PYPY_URL=$6
 TIMESTAMP=$7
+# Instead if timestamp, use something like YYYYmmdd (ex: 20241018)
 
 for var in "$MAVEN_USER" "$MAVEN_PASSWORD" "$SCALA_RELEASE" "$SPARK_RELEASE" "$NEXUS_ARTIFACT_URL" "$NEXUS_PYPY_URL" "$TIMESTAMP"; do
     if [ -z "$var" ]; then
@@ -37,7 +38,7 @@ deploy_python()
   cd $OLDPWD
 }
 
-VERSION_SUFFIX="criteo-${TIMESTAMP}"
+VERSION_SUFFIX="${TIMESTAMP}-criteo"
 
 if [ ${SCALA_RELEASE} == "2.12" ]; then
     ./dev/change-scala-version.sh 2.12
