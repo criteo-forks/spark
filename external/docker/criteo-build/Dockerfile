@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM filer-docker-registry.crto.in/criteo-centos-base:0.1.0-3325-gadc8d652
+FROM filer-docker-registry.crto.in/criteo-centos-base-8:0.1.0-8305-g3d242e9c
 
 ARG USER_NAME
 ARG USER_ID
@@ -26,9 +26,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Without the following plugin yum fails to install packages with
 # Rpmdb checksum is invalid: dCDPT(pkg checksums)....
-RUN yum -y install yum-plugin-ovl
-RUN yum groupinstall -y 'Development Tools'
-RUN yum install -y \
+RUN yum -y install dnf-plugin-ovl
+RUN dnf groupinstall -y 'Development Tools'
+RUN dnf install -y \
         ant \
         bats \
         bzip2 \
@@ -93,7 +93,6 @@ RUN mkdir /home/${USER_NAME}/.m2 && chown ${USER_NAME}: /home/${USER_NAME}/.m2
 RUN echo '<settings><mirrors><mirror><id>criteo</id><mirrorOf>*</mirrorOf><url>http://nexus.criteo.prod/content/groups/criteodev</url></mirror></mirrors><servers><server><id>criteo</id><username>${criteo.repo.username}</username><password>${criteo.repo.password}</password></server></servers></settings>' > /home/${USER_NAME}/.m2/settings.xml
 
 # Alias python3 to python otherwise python 2 is called
-RUN mv /usr/bin/python /usr/bin/python2
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN rm -f /var/log/faillog /var/log/lastlog
