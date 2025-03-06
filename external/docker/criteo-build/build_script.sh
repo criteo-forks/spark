@@ -123,7 +123,7 @@ mvn deploy:deploy-file \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # jar artifacts (for parent poms) deployment
-mvn deploy \
+mvn validate jar:jar deploy:deploy \
     --batch-mode \
     ${MVN_COMMON_PROPERTIES} \
     -Phadoop-provided \
@@ -131,7 +131,6 @@ mvn deploy \
     -Dcriteo.repo.username=${MAVEN_USER} \
     -Dcriteo.repo.password=${MAVEN_PASSWORD} \
     -DskipTests
-
 
 # python deployment
 deploy_python $PYTHON_PEX_VERSION
