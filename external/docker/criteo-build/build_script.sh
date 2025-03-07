@@ -117,7 +117,11 @@ mvn deploy \
     -DaltDeploymentRepository=criteo::default::${NEXUS_ARTIFACT_URL} \
     -Dcriteo.repo.username=${MAVEN_USER} \
     -Dcriteo.repo.password=${MAVEN_PASSWORD} \
-    -DskipTests
+    -DskipTests \
+    -Dmaven.javadoc.skip=true \
+    -Dmaven.scaladoc.skip=true \
+    -Dmaven.source.skip \
+    -Dcyclonedx.skip=true
 
 
 # python deployment
