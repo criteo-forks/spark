@@ -110,7 +110,7 @@ mvn deploy:deploy-file \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # jar artifacts (for parent poms) deployment
-mvn deploy:deploy \
+mvn validate jar:jar deploy:deploy \
     --batch-mode \
     ${MVN_COMMON_PROPERTIES} \
     -Phadoop-provided \
