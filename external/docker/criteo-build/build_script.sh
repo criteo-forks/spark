@@ -38,7 +38,7 @@ deploy_python()
   cd $OLDPWD
 }
 
-VERSION_SUFFIX="${TIMESTAMP}-criteo"
+VERSION_SUFFIX="criteo-${TIMESTAMP}"
 
 if [ ${SCALA_RELEASE} == "2.12" ]; then
     ./dev/change-scala-version.sh 2.12
