@@ -81,7 +81,7 @@ private[spark] trait UIRoot {
    */
   def withSparkUI[T](appId: String, attemptId: Option[String])(fn: SparkUI => T): T
 
-  def getApplicationInfoList: Iterator[ApplicationInfo]
+  def mapApplicationInfoList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B]
   def getApplicationInfo(appId: String): Option[ApplicationInfo]
 
   /**

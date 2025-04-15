@@ -97,7 +97,7 @@ private[history] abstract class ApplicationHistoryProvider {
    *
    * @return List of all know applications.
    */
-  def getListing(): Iterator[ApplicationInfo]
+  def mapListing[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B]
 
   /**
    * Returns the Spark UI for a specific application.
