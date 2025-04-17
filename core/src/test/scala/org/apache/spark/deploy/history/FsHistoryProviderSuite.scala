@@ -303,7 +303,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
     oldLog.mkdir()
 
     provider.checkForLogs()
-    val appListAfterRename = provider.getListing()
+    val appListAfterRename = provider.mapListing(identity)
     appListAfterRename.size should be (1)
   }
 
@@ -1556,7 +1556,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
       provider.checkForLogs()
       provider.cleanLogs()
       assert(dir.listFiles().size === 1)
-      assert(provider.getListing.length === 1)
+      assert(provider.mapListing(identity).length === 1)
 
       // Manually delete the appstatus file to make an invalid rolling event log
       val appStatusPath = RollingEventLogFilesWriter.getAppStatusFilePath(new Path(writer.logPath),
@@ -1564,7 +1564,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
       fs.delete(appStatusPath, false)
       provider.checkForLogs()
       provider.cleanLogs()
-      assert(provider.getListing.length === 0)
+      assert(provider.mapListing(identity).length === 0)
 
       // Create a new application
       val writer2 = new RollingEventLogFilesWriter("app2", None, dir.toURI, conf, hadoopConf)
@@ -1576,14 +1576,14 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
       // Both folders exist but only one application found
       provider.checkForLogs()
       provider.cleanLogs()
-      assert(provider.getListing.length === 1)
+      assert(provider.mapListing(identity).length === 1)
       assert(dir.listFiles().size === 2)
 
       // Make sure a new provider sees the valid application
       provider.stop()
       val newProvider = new FsHistoryProvider(conf)
       newProvider.checkForLogs()
-      assert(newProvider.getListing.length === 1)
+      assert(newProvider.mapListing(identity).length === 1)
     }
   }
 
@@ -1613,10 +1613,10 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
 
       // The 1st checkForLogs should scan/update app2 only since it is newer than app1
       provider.checkForLogs()
-      assert(provider.getListing.length === 1)
+      assert(provider.mapListing(identity).length === 1)
       assert(dir.listFiles().size === 2)
-      assert(provider.getListing().map(e => e.id).contains("app2"))
-      assert(!provider.getListing().map(e => e.id).contains("app1"))
+      assert(provider.mapListing(e => e.map(_.id)).contains("app2"))
+      assert(!provider.mapListing(e => e.map(_.id)).contains("app1"))
 
       // Create 3rd application
       val writer3 = new RollingEventLogFilesWriter("app3", None, dir.toURI, conf, hadoopConf)
@@ -1628,10 +1628,10 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
 
       // The 2nd checkForLogs should scan/update app3 only since it is newer than app1
       provider.checkForLogs()
-      assert(provider.getListing.length === 2)
+      assert(provider.mapListing(identity).length === 2)
       assert(dir.listFiles().size === 3)
-      assert(provider.getListing().map(e => e.id).contains("app3"))
-      assert(!provider.getListing().map(e => e.id).contains("app1"))
+      assert(provider.mapListing(e => e.map(_.id)).contains("app3"))
+      assert(!provider.mapListing(e => e.map(_.id)).contains("app1"))
 
       provider.stop()
     }
@@ -1655,7 +1655,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
       provider.checkForLogs()
       provider.cleanLogs()
       assert(dir.listFiles().size === 1)
-      assert(provider.getListing.length === 1)
+      assert(provider.mapListing(identity).length === 1)
 
       // Manually delete event log files and create event log file reader
       val eventLogDir = dir.listFiles().head
@@ -1759,7 +1759,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
     )
     log3.setLastModified(0L)
 
-    provider.getListing().size should be (0)
+    provider.mapListing(identity).size should be (0)
 
     // Move the clock forward so log1 and log3 exceed the max age.
     clock.advance(maxAge)
@@ -1767,7 +1767,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
     provider.checkForLogs()
 
     provider.doMergeApplicationListingCall should be (1)
-    provider.getListing().size should be (1)
+    provider.mapListing(identity).size should be (1)
 
     assert(!log1.exists())
     assert(!log3.exists())
@@ -1786,7 +1786,7 @@ abstract class FsHistoryProviderSuite extends SparkFunSuite with Matchers with P
       (checkFn: Seq[ApplicationInfo] => Unit): Unit = {
     provider.checkForLogs()
     provider.cleanLogs()
-    checkFn(provider.getListing().toSeq)
+    checkFn(provider.mapListing(identity))
   }
 
   private def writeFile(file: File, codec: Option[CompressionCodec],

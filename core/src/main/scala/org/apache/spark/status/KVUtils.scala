@@ -210,6 +210,12 @@ private[spark] object KVUtils extends Logging {
     }
   }
 
+  def mapItToSeq[T, B](view: KVStoreView[T])(mapFunc: Iterator[T] => Iterator[B]): Seq[B] = {
+    Utils.tryWithResource(view.closeableIterator()) { iter =>
+      mapFunc(iter.asScala).toList
+    }
+  }
+
   def size[T](view: KVStoreView[T]): Int = {
     Utils.tryWithResource(view.closeableIterator()) { iter =>
       iter.asScala.size

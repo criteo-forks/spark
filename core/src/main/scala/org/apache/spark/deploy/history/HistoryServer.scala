@@ -204,8 +204,8 @@ class HistoryServer(
    *
    * @return List of all known applications.
    */
-  def getApplicationList(): Iterator[ApplicationInfo] = {
-    provider.getListing()
+  def mapApplicationList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
+    provider.mapListing(mapFunc)
   }
 
   def getEventLogsUnderProcess(): Int = {
@@ -216,8 +216,8 @@ class HistoryServer(
     provider.getLastUpdatedTime()
   }
 
-  def getApplicationInfoList: Iterator[ApplicationInfo] = {
-    getApplicationList()
+  def mapApplicationInfoList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
+    mapApplicationList(mapFunc)
   }
 
   def getApplicationInfo(appId: String): Option[ApplicationInfo] = {
