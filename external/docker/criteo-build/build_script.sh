@@ -28,11 +28,12 @@ deploy_python()
   sed -i "s/__version__ = \\\".*\\\"/__version__ = \\\"${pyspark_version}\\\"/g" python/pyspark/version.py
   python -m venv venv
   source venv/bin/activate
-  pip install --upgrade pip
-  pip install -r python/requirements.txt
+  pip install --quiet --upgrade pip
+  pip install --quiet -r python/requirements.txt
   cd python
+  rm -fr dist/*
   python setup.py bdist_wheel
-  twine upload dist/pyspark*whl -u ${TWINE_USERNAME} -p ${TWINE_PASSWORD} --skip-existing --repository-url "${NEXUS_PYPY_URL}/"
+  twine upload dist/pyspark*whl -u ${TWINE_USERNAME} -p ${TWINE_PASSWORD} --skip-existing --repository-url "${NEXUS_PYPY_URL}"
   python setup.py clean --all
   cd $OLDPWD
 }
