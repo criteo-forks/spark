@@ -73,6 +73,19 @@ rm -f python/dist/*
 # change version
 mvn --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
+# Build distribution with hadoop
+./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
+# tgz artifact deployment
+mvn deploy:deploy-file \
+    --batch-mode \
+    -DgroupId=com.criteo.tarballs \
+    -DartifactId=spark \
+    -Dversion=${MVN_HDP_ARTIFACT_VERSION} \
+    -Dpackaging=tar.gz \
+    -Dfile=${SPARK_HDP_ARTIFACT_FILE} \
+    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
+
+deploy_python $PYTHON_HDP_PEX_VERSION
 
 # Build distribution without hadoop
 ./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp ${MVN_COMMON_PROPERTIES} -Phadoop-provided
@@ -110,7 +123,7 @@ mvn deploy:deploy-file \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # jar artifacts (for parent poms) deployment
-mvn validate jar:jar deploy:deploy \
+mvn validate jar:jar jar:test-jar deploy:deploy \
     --batch-mode \
     ${MVN_COMMON_PROPERTIES} \
     -Phadoop-provided \
@@ -121,18 +134,3 @@ mvn validate jar:jar deploy:deploy \
 
 # python deployment
 deploy_python $PYTHON_PEX_VERSION
-
-# Build distribution with hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
-
-# tgz artifact deployment
-mvn deploy:deploy-file \
-    --batch-mode \
-    -DgroupId=com.criteo.tarballs \
-    -DartifactId=spark \
-    -Dversion=${MVN_HDP_ARTIFACT_VERSION} \
-    -Dpackaging=tar.gz \
-    -Dfile=${SPARK_HDP_ARTIFACT_FILE} \
-    ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
-
-deploy_python $PYTHON_HDP_PEX_VERSION
