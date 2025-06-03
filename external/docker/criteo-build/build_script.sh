@@ -124,15 +124,30 @@ mvn deploy:deploy-file \
     -Dfile=${SHUFFLE_SERVICE_JAR_FILE} \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
-# jar artifacts (for parent poms) deployment
+# Build and deploy all modules EXCEPT the root-level spark-parent_2.12 module,
+# to avoid generating and uploading unwanted -tests.jar from a POM-only module.
 mvn validate jar:jar jar:test-jar source:jar-no-fork deploy:deploy \
     --batch-mode \
+    -pl "!org.apache.spark:spark-parent_${SCALA_RELEASE}" \
     ${MVN_COMMON_PROPERTIES} \
     -Phadoop-provided \
     -DaltDeploymentRepository=criteo::default::${NEXUS_ARTIFACT_URL} \
     -Dcriteo.repo.username=${MAVEN_USER} \
     -Dcriteo.repo.password=${MAVEN_PASSWORD} \
     -DskipTests
+
+# Deploy the parent POM (at project root) manually, with no JAR generation.
+# This ensures only the .pom file is published, as expected for a parent POM.
+mvn deploy:deploy-file \
+    -DgroupId=org.apache.spark \
+    -DartifactId=spark-parent_${SCALA_RELEASE} \
+    -Dversion=${CRITEO_VERSION} \
+    -Dpackaging=pom \
+    -Dfile=./pom.xml \
+    -DrepositoryId=criteo \
+    -Durl=${NEXUS_ARTIFACT_URL} \
+    -Dcriteo.repo.username=${MAVEN_USER} \
+    -Dcriteo.repo.password=${MAVEN_PASSWORD}
 
 # python deployment
 deploy_python $PYTHON_PEX_VERSION
