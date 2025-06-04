@@ -126,7 +126,7 @@ mvn deploy:deploy-file \
 
 # Build and deploy all modules EXCEPT the root-level spark-parent_2.12 module,
 # to avoid generating and uploading unwanted -tests.jar from a POM-only module.
-mvn validate jar:jar jar:test-jar source:jar-no-fork deploy:deploy \
+mvn validate jar:jar jar:test-jar source:jar deploy:deploy \
     --batch-mode \
     -pl "!org.apache.spark:spark-parent_${SCALA_RELEASE}" \
     ${MVN_COMMON_PROPERTIES} \
