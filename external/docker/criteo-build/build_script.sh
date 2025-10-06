@@ -10,6 +10,9 @@ NEXUS_PYPY_URL=$6
 TIMESTAMP=$7
 # Instead if timestamp, use something like YYYYmmdd (ex: 20241018)
 
+SPARK_HOME="$(cd "`dirname "$0"`/../../.."; pwd)"
+MVN="$SPARK_HOME/build/mvn"
+
 for var in "$MAVEN_USER" "$MAVEN_PASSWORD" "$SCALA_RELEASE" "$SPARK_RELEASE" "$NEXUS_ARTIFACT_URL" "$NEXUS_PYPY_URL" "$TIMESTAMP"; do
     if [ -z "$var" ]; then
         echo "Missing arguments"
@@ -67,18 +70,18 @@ MVN_COMMON_PROPERTIES="-Pconnect -Phive-thriftserver -Pyarn -Dhive.version=${HIV
 MVN_COMMON_DEPLOY_FILE_PROPERTIES="-Durl=${NEXUS_ARTIFACT_URL} -DrepositoryId=criteo -Dcriteo.repo.username=${MAVEN_USER} -Dcriteo.repo.password=${MAVEN_PASSWORD} -DretryFailedDeploymentCount=3"
 
 # do some house cleaning
-mvn --no-transfer-progress clean
+$MVN --no-transfer-progress clean
 rm -f spark-*.tgz
 rm -f dist/python/dist/*
 rm -f python/dist/*
 
 # change version
-mvn --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
+$MVN --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
 # Build distribution with hadoop
 ./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
 # tgz artifact deployment
-mvn deploy:deploy-file \
+$MVN deploy:deploy-file \
     --batch-mode \
     -DgroupId=com.criteo.tarballs \
     -DartifactId=spark \
@@ -92,7 +95,7 @@ deploy_python $PYTHON_HDP_PEX_VERSION
 # Build distribution without hadoop
 ./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp ${MVN_COMMON_PROPERTIES} -Phadoop-provided
 # tgz artifact deployment
-mvn deploy:deploy-file \
+$MVN deploy:deploy-file \
     --batch-mode \
     -DgroupId=com.criteo.tarballs \
     -DartifactId=spark \
@@ -105,7 +108,7 @@ mvn deploy:deploy-file \
 cd dist/jars && tar -czf ${OLDPWD}/${SPARK_JARS_ARTIFACT_FILE} *.jar; cd $OLDPWD
 
 # Deploy tgz jars only artifact
-mvn deploy:deploy-file \
+$MVN deploy:deploy-file \
     --batch-mode \
     -DgroupId=com.criteo.tarballs \
     -DartifactId=spark-jars \
@@ -115,7 +118,7 @@ mvn deploy:deploy-file \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
 # shuffle service deployment
-mvn deploy:deploy-file \
+$MVN deploy:deploy-file \
     --batch-mode \
     -DgroupId=org.apache.spark \
     -DartifactId=yarn-shuffle_${SCALA_RELEASE} \
@@ -126,7 +129,7 @@ mvn deploy:deploy-file \
 
 # Build and deploy all modules EXCEPT the root-level spark-parent_2.12 module,
 # to avoid generating and uploading unwanted -tests.jar from a POM-only module.
-mvn validate jar:jar jar:test-jar source:jar deploy:deploy \
+$MVN validate jar:jar jar:test-jar source:jar deploy:deploy \
     --batch-mode \
     -pl "!org.apache.spark:spark-parent_${SCALA_RELEASE}" \
     ${MVN_COMMON_PROPERTIES} \
@@ -138,7 +141,7 @@ mvn validate jar:jar jar:test-jar source:jar deploy:deploy \
 
 # Deploy the parent POM (at project root) manually, with no JAR generation.
 # This ensures only the .pom file is published, as expected for a parent POM.
-mvn deploy:deploy-file \
+$MVN deploy:deploy-file \
     -DgroupId=org.apache.spark \
     -DartifactId=spark-parent_${SCALA_RELEASE} \
     -Dversion=${CRITEO_VERSION} \
