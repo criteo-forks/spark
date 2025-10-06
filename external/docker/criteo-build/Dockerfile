@@ -68,7 +68,7 @@ RUN dnf install -y \
 
 # we need maven 3.8.8
 RUN rm -rf /usr/share/maven  \
-    && wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz  \
+    && wget --no-check-certificate https://archive.apache.org/dist/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz  \
     && tar xf apache-maven-3.8.8-bin.tar.gz -C /usr/share  \
     && ln -s /usr/share/apache-maven-3.8.8 /usr/share/maven
 
