@@ -4433,6 +4433,13 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val CRITEO_PARTITION_AUTOSTATS_CALCULATION_ENABLED =
+    buildConf("spark.sql.criteo.partition.autoStats.enabled")
+      .doc("Enables Spark to calculate automatically partition level statistics when new partition is created")
+      .version("3.5.7")
+      .booleanConf
+      .createWithDefault(true)
+
   /**
    * Holds information about keys that have been deprecated.
    *
@@ -5290,6 +5297,9 @@ class SQLConf extends Serializable with Logging with SqlApiConf {
     getConf(SQLConf.LEGACY_NEGATIVE_INDEX_IN_ARRAY_INSERT)
   }
 
+  def isPartitionAutoStatsEnabled: Boolean = {
+    getConf(SQLConf.CRITEO_PARTITION_AUTOSTATS_CALCULATION_ENABLED)
+  }
   /** ********************** SQLConf functionality methods ************ */
 
   /** Set Spark SQL configuration properties. */
