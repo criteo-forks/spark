@@ -294,10 +294,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  override def mapListing[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
+  override def getListing(): Iterator[ApplicationInfo] = {
     // Return the listing in end time descending order.
-    KVUtils.mapItToSeq(listing.view(classOf[ApplicationInfoWrapper])
-      .index("endTime").reverse())(it => mapFunc(it.map(_.toApplicationInfo())))
+    KVUtils.mapToSeq(listing.view(classOf[ApplicationInfoWrapper])
+      .index("endTime").reverse())(_.toApplicationInfo()).iterator
   }
 
   override def getListing(max: Int)(

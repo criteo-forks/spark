@@ -204,8 +204,8 @@ class HistoryServer(
    *
    * @return List of all known applications.
    */
-  def mapApplicationList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
-    provider.mapListing(mapFunc)
+  def getApplicationList(): Iterator[ApplicationInfo] = {
+    provider.getListing()
   }
 
   def getEventLogsUnderProcess(): Int = {
@@ -216,8 +216,8 @@ class HistoryServer(
     provider.getLastUpdatedTime()
   }
 
-  def mapApplicationInfoList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
-    mapApplicationList(mapFunc)
+  def getApplicationInfoList: Iterator[ApplicationInfo] = {
+    getApplicationList()
   }
 
   override def getApplicationInfoList(max: Int)(

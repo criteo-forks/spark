@@ -171,8 +171,8 @@ private[spark] class SparkUI private (
     securityManager.checkUIViewPermissions(user)
   }
 
-  def mapApplicationInfoList[B](mapFunc: Iterator[ApplicationInfo] => Iterator[B]): Seq[B] = {
-    mapFunc(Iterator(new ApplicationInfo(
+  def getApplicationInfoList: Iterator[ApplicationInfo] = {
+    Iterator(new ApplicationInfo(
       id = appId,
       name = appName,
       coresGranted = None,
@@ -189,7 +189,7 @@ private[spark] class SparkUI private (
         completed = false,
         appSparkVersion = appSparkVersion
       ))
-    ))).toSeq
+    ))
   }
 
   override def getApplicationInfoList(max: Int)(
@@ -198,7 +198,7 @@ private[spark] class SparkUI private (
   }
 
   def getApplicationInfo(appId: String): Option[ApplicationInfo] = {
-    mapApplicationInfoList(_.find(_.id == appId).iterator).headOption
+    getApplicationInfoList.find(_.id == appId)
   }
 
   def getStreamingJobProgressListener: Option[SparkListener] = streamingJobProgressListener

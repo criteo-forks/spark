@@ -132,7 +132,7 @@ class ApplicationCacheSuite extends SparkFunSuite with MockitoSugar with Matcher
       Seq(new AttemptInfo(attemptId, new Date(started), new Date(ended),
         new Date(ended), ended - started, "user", completed, org.apache.spark.SPARK_VERSION)))
     val ui = mock[SparkUI]
-    when(ui.mapApplicationInfoList[Any](any())).thenReturn(List(info))
+    when(ui.getApplicationInfoList).thenReturn(List(info).iterator)
     when(ui.getAppName).thenReturn(name)
     when(ui.appName).thenReturn(name)
     val handler = new ServletContextHandler()
