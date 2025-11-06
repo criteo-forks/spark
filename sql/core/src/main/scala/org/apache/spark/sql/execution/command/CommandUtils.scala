@@ -52,6 +52,13 @@ class PathFilterIgnoreNonData(stagingDir: String) extends PathFilter with Serial
 
 object CommandUtils extends Logging {
 
+  def updatePartitionStats(session: SparkSession, table: CatalogTable,
+                           partition: Map[String, Option[String]]): Unit = {
+    if (session.sessionState.conf.isPartitionAutoStatsEnabled) {
+      AnalyzePartitionCommand(table.identifier, partition, false).run(session)
+    }
+  }
+
   /** Change statistics after changing data by commands. */
   def updateTableStats(sparkSession: SparkSession, table: CatalogTable): Unit = {
     val catalog = sparkSession.sessionState.catalog
