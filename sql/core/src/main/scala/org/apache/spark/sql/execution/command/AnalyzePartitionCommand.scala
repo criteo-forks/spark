@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.command
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
@@ -45,7 +46,7 @@ import org.apache.spark.util.collection.Utils
 case class AnalyzePartitionCommand(
     tableIdent: TableIdentifier,
     partitionSpec: Map[String, Option[String]],
-    noscan: Boolean = true) extends LeafRunnableCommand {
+    noscan: Boolean = true) extends LeafRunnableCommand with Logging {
 
   private def getPartitionSpec(table: CatalogTable): Option[TablePartitionSpec] = {
     val normalizedPartitionSpec =
@@ -141,13 +142,25 @@ case class AnalyzePartitionCommand(
     val df = tableDf.filter(Column(filter)).groupBy(partitionColumns: _*).count()
 
     df.collect().map { r =>
-      val partitionColumnValues = partitionColumns.indices.map { i =>
-        if (r.isNullAt(i)) {
-          ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+      val partitionColumnValues =
+        if ("true".equalsIgnoreCase(sparkSession.sessionState.conf.
+          getConfString("spark.sql.hive.convertInsertingPartitionedTable", "true"))) {
+          partitionColumns.indices.map { i =>
+            if (r.isNullAt(i)) {
+              ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+            } else {
+              r.get(i).toString
+            }
+          }
         } else {
-          r.get(i).toString
+          tableMeta.partitionColumnNames.zipWithIndex.map { case (colName, i) =>
+            partitionValueSpec.flatMap(_.get(colName))
+              .getOrElse({
+                logWarning( s"column '$colName' is missing in the given partition " +
+                  s"'$partitionValueSpec', thus no statistics will be collected for it.")
+                ExternalCatalogUtils.DEFAULT_PARTITION_NAME})
+          }
         }
-      }
       val spec = Utils.toMap(tableMeta.partitionColumnNames, partitionColumnValues)
       val count = BigInt(r.getLong(partitionColumns.size))
       (spec, count)
