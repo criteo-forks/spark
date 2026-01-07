@@ -54,7 +54,7 @@ object CommandUtils extends Logging {
 
   def updatePartitionStats(session: SparkSession, table: CatalogTable,
                            partition: Map[String, Option[String]]): Unit = {
-    if (session.sessionState.conf.isPartitionAutoStatsEnabled) {
+    if (session.sessionState.conf.isPartitionAutoStatsEnabled && table.partitionColumnNames.nonEmpty) {
       AnalyzePartitionCommand(table.identifier, partition, false).run(session)
     }
   }
