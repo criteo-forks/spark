@@ -366,6 +366,32 @@ public class ExternalBlockHandler extends RpcHandler
       });
       allMetrics.put("registeredExecutorsSize",
                      (Gauge<Integer>) () -> blockManager.getRegisteredExecutorsSize());
+      allMetrics.put("shuffleIndexCacheHitRate",
+        (Gauge<Double>) () -> blockManager.getShuffleIndexCacheStats().hitRate());
+      allMetrics.put("shuffleIndexCacheMissRate",
+        (Gauge<Double>) () -> blockManager.getShuffleIndexCacheStats().missRate());
+      allMetrics.put("shuffleIndexCacheRequestCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().requestCount());
+      allMetrics.put("shuffleIndexCacheHitCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().hitCount());
+      allMetrics.put("shuffleIndexCacheMissCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().missCount());
+      allMetrics.put("shuffleIndexCacheLoadSuccessCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().loadSuccessCount());
+      allMetrics.put("shuffleIndexCacheLoadExceptionCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().loadExceptionCount());
+      allMetrics.put("shuffleIndexCacheTotalLoadTimeNanos",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().totalLoadTime());
+      allMetrics.put("shuffleIndexCacheAverageLoadPenaltyNanos",
+        (Gauge<Double>) () -> blockManager.getShuffleIndexCacheStats().averageLoadPenalty());
+      allMetrics.put("shuffleIndexCacheEvictionCount",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheStats().evictionCount());
+      allMetrics.put("shuffleIndexCacheSize",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheSize());
+      allMetrics.put("shuffleIndexCacheRetainedMemorySizeBytes",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheRetainedMemorySizeBytes());
+      allMetrics.put("shuffleIndexCacheMaxMemorySizeBytes",
+        (Gauge<Long>) () -> blockManager.getShuffleIndexCacheMaxMemorySizeBytes());
       allMetrics.put("numActiveConnections", activeConnections);
       allMetrics.put("numCaughtExceptions", caughtExceptions);
     }

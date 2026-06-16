@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -35,7 +36,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
 import com.google.common.cache.Weigher;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
@@ -82,6 +85,8 @@ public class ExternalShuffleBlockResolver {
    *  for each block fetch.
    */
   private final LoadingCache<String, ShuffleIndexInformation> shuffleIndexCache;
+  private final AtomicLong shuffleIndexCacheRetainedMemorySizeBytes = new AtomicLong();
+  private final long shuffleIndexCacheMaxMemorySizeBytes;
 
   // Single-threaded Java executor used to perform expensive recursive directory deletion.
   private final Executor directoryCleaner;
@@ -113,17 +118,27 @@ public class ExternalShuffleBlockResolver {
       Boolean.parseBoolean(conf.get(Constants.SHUFFLE_SERVICE_FETCH_RDD_ENABLED, "false"));
     this.registeredExecutorFile = registeredExecutorFile;
     String indexCacheSize = conf.get("spark.shuffle.service.index.cache.size", "100m");
+    shuffleIndexCacheMaxMemorySizeBytes = JavaUtils.byteStringAsBytes(indexCacheSize);
     CacheLoader<String, ShuffleIndexInformation> indexCacheLoader =
         new CacheLoader<String, ShuffleIndexInformation>() {
           @Override
           public ShuffleIndexInformation load(String filePath) throws IOException {
-            return new ShuffleIndexInformation(filePath);
+            ShuffleIndexInformation indexInfo = new ShuffleIndexInformation(filePath);
+            shuffleIndexCacheRetainedMemorySizeBytes.addAndGet(indexInfo.getRetainedMemorySize());
+            return indexInfo;
           }
         };
     shuffleIndexCache = CacheBuilder.newBuilder()
-      .maximumWeight(JavaUtils.byteStringAsBytes(indexCacheSize))
+      .maximumWeight(shuffleIndexCacheMaxMemorySizeBytes)
       .weigher((Weigher<String, ShuffleIndexInformation>)
         (filePath, indexInfo) -> indexInfo.getRetainedMemorySize())
+      .removalListener((RemovalListener<String, ShuffleIndexInformation>) notification -> {
+        ShuffleIndexInformation indexInfo = notification.getValue();
+        if (indexInfo != null) {
+          shuffleIndexCacheRetainedMemorySizeBytes.addAndGet(-indexInfo.getRetainedMemorySize());
+        }
+      })
+      .recordStats()
       .build(indexCacheLoader);
     String dbBackendName =
       conf.get(Constants.SHUFFLE_SERVICE_DB_BACKEND, DBBackend.LEVELDB.name());
@@ -141,6 +156,22 @@ public class ExternalShuffleBlockResolver {
 
   public int getRegisteredExecutorsSize() {
     return executors.size();
+  }
+
+  CacheStats getShuffleIndexCacheStats() {
+    return shuffleIndexCache.stats();
+  }
+
+  long getShuffleIndexCacheSize() {
+    return shuffleIndexCache.size();
+  }
+
+  long getShuffleIndexCacheRetainedMemorySizeBytes() {
+    return shuffleIndexCacheRetainedMemorySizeBytes.get();
+  }
+
+  long getShuffleIndexCacheMaxMemorySizeBytes() {
+    return shuffleIndexCacheMaxMemorySizeBytes;
   }
 
   /** Registers a new Executor with all the configuration we need to find its shuffle files. */
