@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM filer-docker-registry.crto.in/criteo-centos-base-8:0.1.0-8305-g3d242e9c
+FROM filer-docker-registry-build.prod.crto.in/criteo-centos-base-8:latest
 
 ARG USER_NAME
 ARG USER_ID
