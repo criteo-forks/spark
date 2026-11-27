@@ -45,15 +45,28 @@ deploy_python()
 
 VERSION_SUFFIX="criteo-${TIMESTAMP}"
 
-if [ ${SCALA_RELEASE} == "2.12" ]; then
-    ./dev/change-scala-version.sh 2.12
-    MVN_SCALA_PROPERTY="-Pscala-2.12"
-elif [ ${SCALA_RELEASE} == "2.11" ]; then
-    ./dev/change-scala-version.sh 2.11
-    MVN_SCALA_PROPERTY="-Pscala-2.11"
-else
-    echo "[ERROR] Scala release not provided"
+case "${SCALA_RELEASE}" in
+  # 2.11 is kept so the script stays compatible with the older criteo-2.x branches.
+  # criteo-3.5 itself cannot build it: change-scala-version.sh only accepts 2.12 and 2.13.
+  2.11|2.12|2.13)
+    ./dev/change-scala-version.sh "${SCALA_RELEASE}"
+    MVN_SCALA_PROPERTY="-Pscala-${SCALA_RELEASE}"
+    ;;
+  *)
+    echo "[ERROR] Unsupported Scala release '${SCALA_RELEASE}' (expected 2.11, 2.12 or 2.13)"
     exit 1
+    ;;
+esac
+
+# The PySpark wheel is not published for Scala 2.13. PEP 440 compares local version segments
+# numerically, so "+criteo.scala.2.13.<TS>" would sort above every 2.12 wheel and silently
+# hijack loose pins such as "pyspark==3.5".
+if [ "${SCALA_RELEASE}" == "2.13" ]; then
+    PUBLISH_PYTHON=false
+    MAKE_DIST_PIP_OPT=""
+else
+    PUBLISH_PYTHON=true
+    MAKE_DIST_PIP_OPT="--pip"
 fi
 
 SPARK_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:evaluate -Dexpression=project.version -q -DforceStdout)"
@@ -79,7 +92,7 @@ rm -f python/dist/*
 $MVN --no-transfer-progress versions:set -DnewVersion=${CRITEO_VERSION}
 
 # Build distribution with hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
+./dev/make-distribution.sh ${MAKE_DIST_PIP_OPT} --name ${SCALA_RELEASE}-${HDP_VERSION} --tgz -ntp ${MVN_COMMON_PROPERTIES}
 # tgz artifact deployment
 $MVN deploy:deploy-file \
     --batch-mode \
@@ -90,10 +103,10 @@ $MVN deploy:deploy-file \
     -Dfile=${SPARK_HDP_ARTIFACT_FILE} \
     ${MVN_COMMON_DEPLOY_FILE_PROPERTIES}
 
-deploy_python $PYTHON_HDP_PEX_VERSION
+if [ "${PUBLISH_PYTHON}" == "true" ]; then deploy_python $PYTHON_HDP_PEX_VERSION; fi
 
 # Build distribution without hadoop
-./dev/make-distribution.sh --pip --name ${SCALA_RELEASE} --tgz -ntp ${MVN_COMMON_PROPERTIES} -Phadoop-provided
+./dev/make-distribution.sh ${MAKE_DIST_PIP_OPT} --name ${SCALA_RELEASE} --tgz -ntp ${MVN_COMMON_PROPERTIES} -Phadoop-provided
 # tgz artifact deployment
 $MVN deploy:deploy-file \
     --batch-mode \
@@ -153,4 +166,4 @@ $MVN deploy:deploy-file \
     -Dcriteo.repo.password=${MAVEN_PASSWORD}
 
 # python deployment
-deploy_python $PYTHON_PEX_VERSION
+if [ "${PUBLISH_PYTHON}" == "true" ]; then deploy_python $PYTHON_PEX_VERSION; fi
